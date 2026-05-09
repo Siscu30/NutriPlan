@@ -917,9 +917,17 @@ body.dark .banner-train { color: #fed7aa; background: linear-gradient(135deg, rg
   <!-- FAB -->
   <button id="fab" class="fab" aria-label="Ir a la compra">🛒</button>
 
+  <!-- PROGRESO -->
+  <main id="sec-progress" class="section">
+    <h1 class="section-title">📈 Mi Progreso</h1>
+    <p class="section-sub">Histórico mensual de actividad</p>
+    <div id="progress-content"></div>
+  </main>
+
   <!-- BOTTOM NAV -->
   <nav class="bottomnav">
     <button data-sec="nutri" class="active"><span class="glyph">🥗</span><span>Nutrición</span></button>
+    <button data-sec="progress"><span class="glyph">📈</span><span>Progreso</span></button>
     <button data-sec="shop"><span class="glyph">🛒</span><span>Compra</span></button>
     <button data-sec="import"><span class="glyph">📥</span><span>Mi Plan</span></button>
   </nav>
@@ -962,6 +970,7 @@ const AppState = {
   entrenosDias: { fran: emptyEntrenos(), lua: emptyEntrenos() },
   shopChecked: {}, // ingredient name -> true
   trackers: { fran: { water: {}, steps: {} }, lua: { water: {}, steps: {} } },
+  history: { fran: {}, lua: {} }, // YYYY-MM-DD -> { steps: 0, water: 0, trained: false }
   lastSync: 0
 };
 function emptyPlan() {
@@ -999,6 +1008,7 @@ function loadAll() {
     if (data?.plans) AppState.plans = mergePlans(data.plans);
     if (data?.activeProfile) AppState.activeProfile = data.activeProfile;
     if (data?.trackers) AppState.trackers = data.trackers;
+    if (data?.history) AppState.history = data.history;
     const ent = JSON.parse(localStorage.getItem("nutri_entrenos") || "null");
     if (ent) AppState.entrenosDias = { fran: { ...emptyEntrenos(), ...(ent.fran||{}) }, lua: { ...emptyEntrenos(), ...(ent.lua||{}) } };
     // Auto-reset entrenos al inicio de cada semana (lunes)
@@ -1029,7 +1039,7 @@ function mergePlans(p) {
   return out;
 }
 function saveAll() {
-  localStorage.setItem("nutri_app_data", JSON.stringify({ plans: AppState.plans, activeProfile: AppState.activeProfile, trackers: AppState.trackers }));
+  localStorage.setItem("nutri_app_data", JSON.stringify({ plans: AppState.plans, activeProfile: AppState.activeProfile, trackers: AppState.trackers, history: AppState.history }));
   localStorage.setItem("nutri_entrenos", JSON.stringify(AppState.entrenosDias));
   localStorage.setItem("nutri_entrenos_fecha", currentWeekKey());
   localStorage.setItem("nutri_shop_checked", JSON.stringify(AppState.shopChecked));
@@ -1110,6 +1120,7 @@ function render() {
   applyProfileTheme();
   renderNutri();
   renderShop();
+  renderProgress();
   renderImport();
 }
 
@@ -1126,16 +1137,23 @@ function renderNutri() {
   const sel = AppState.selectedDay || todayDay();
   AppState.selectedDay = sel;
   const day = plan.semana.find(d => d.dia === sel) || plan.semana[0];
-  const tr = AppState.entrenosDias[prof][day.dia];
   const dt = dayTotals(day);
   const meriendaSpecial = day.meriendaEspecial && plan.meriendasFijas && day.meriendaEspecial.trim() !== plan.meriendasFijas.trim();
 
-  // Asegurar que existan los trackers
-  if (!AppState.trackers) AppState.trackers = { fran: { water: {}, steps: {} }, lua: { water: {}, steps: {} } };
-  const water = AppState.trackers[prof].water[day.dia] || 0;
-  const steps = AppState.trackers[prof].steps[day.dia] || 0;
-  const stepGoal = 10000;
+  const exactDate = getDateForDay(day.dia);
+  if (!AppState.history) AppState.history = { fran: {}, lua: {} };
+  if (!AppState.history[prof][exactDate]) AppState.history[prof][exactDate] = { steps: 0, water: 0, trained: false };
+  const hData = AppState.history[prof][exactDate];
+  const water = hData.water || 0;
+  const steps = hData.steps || 0;
+  const tr = hData.trained || false;
+  
+  const stepGoal = 12000;
   const stepPct = Math.min(100, (steps / stepGoal) * 100);
+  let stepColor = "#f59e0b"; // Naranja
+  if (steps >= 6000) stepColor = "#86efac"; // Verde claro
+  if (steps >= 10000) stepColor = "#10b981"; // Verde intenso
+  if (steps >= 12000) stepColor = "#fbbf24"; // Amarillo brillante/estrella
 
   root.innerHTML = `
     <section class="profile-summary">
@@ -1184,21 +1202,33 @@ function renderNutri() {
       <div class="trackers-row">
         <!-- AGUA -->
         <div class="tracker-widget water">
-          <div class="tw-head"><div class="tw-icon">💧</div> Agua</div>
-          <div class="water-glasses">
-            ${Array.from({length: 8}).map((_, i) => `<div class="water-glass${i < water ? ' filled' : ''}" data-act="water" data-day="${day.dia}" data-val="${i+1}"></div>`).join("")}
+          <div class="tw-head">
+            <div class="tw-icon">💧</div> Agua 
+            <span style="margin-left:auto;font-size:11px;color:var(--muted)">${water*250}ml</span>
+            ${water >= 8 ? '<span title="Meta de 2L conseguida" style="margin-left:4px">✅</span>' : ''}
           </div>
-          <small style="color:var(--muted);font-size:11px">${water * 250} ml / 2000 ml</small>
+          <div class="water-glasses">
+            ${Array.from({length: Math.max(8, water)}).map((_, i) => `<div class="water-glass${i < water ? ' filled' : ''}" data-act="water" data-day="${day.dia}" data-val="${i+1}"></div>`).join("")}
+            <button class="water-glass" style="display:grid;place-items:center;background:var(--bg-2);border-color:var(--border)" data-act="water-add" data-day="${day.dia}">+</button>
+          </div>
         </div>
         <!-- PASOS -->
         <div class="tracker-widget steps">
-          <div class="tw-head"><div class="tw-icon">👟</div> Pasos</div>
-          <div class="steps-ctrl">
-            <button class="steps-btn" data-act="steps-sub" data-day="${day.dia}">-</button>
-            <input type="number" class="steps-input" value="${steps}" id="steps-in-${day.dia}" />
-            <button class="steps-btn" data-act="steps-add" data-day="${day.dia}">+</button>
+          <div class="tw-head">
+            <div class="tw-icon">👟</div> Pasos
+            ${steps >= 12000 ? '<span style="margin-left:auto" title="¡Increíble!">🌟</span>' : steps >= 10000 ? '<span style="margin-left:auto">🔥</span>' : ''}
           </div>
-          <div class="steps-bar"><div class="fill" style="width:${stepPct}%"></div></div>
+          <div class="steps-ctrl">
+            <input type="number" class="steps-input" value="${steps}" id="steps-in-${day.dia}" />
+          </div>
+          <div style="display:flex;gap:4px;margin-top:2px">
+            <button class="steps-btn" style="flex:1;font-size:11px;padding:6px 0" data-act="steps-add" data-val="10" data-day="${day.dia}">+10</button>
+            <button class="steps-btn" style="flex:1;font-size:11px;padding:6px 0" data-act="steps-add" data-val="50" data-day="${day.dia}">+50</button>
+            <button class="steps-btn" style="flex:1;font-size:11px;padding:6px 0" data-act="steps-add" data-val="100" data-day="${day.dia}">+100</button>
+            <button class="steps-btn" style="flex:1;font-size:11px;padding:6px 0" data-act="steps-add" data-val="500" data-day="${day.dia}">+500</button>
+            <button class="steps-btn" style="flex:1;font-size:11px;padding:6px 0" data-act="steps-add" data-val="1000" data-day="${day.dia}">+1k</button>
+          </div>
+          <div class="steps-bar"><div class="fill" style="width:${stepPct}%;background:${stepColor}"></div></div>
         </div>
       </div>
 
@@ -1247,7 +1277,9 @@ function renderNutri() {
   stInp?.addEventListener("change", (e) => {
     let v = parseInt(e.target.value, 10);
     if (isNaN(v) || v < 0) v = 0;
-    AppState.trackers[prof].steps[sel] = v;
+    const exactDate = getDateForDay(sel);
+    if (!AppState.history[prof][exactDate]) AppState.history[prof][exactDate] = { steps: 0, water: 0, trained: false };
+    AppState.history[prof][exactDate].steps = v;
     saveAll(); syncToGithub(); render();
   });
 }
@@ -1300,28 +1332,40 @@ function weekTotals(plan) {
   }, { kcal: 0, prot: 0, carb: 0, fat: 0 });
 }
 
+function getDateForDay(dayName) {
+  const monKey = currentWeekKey();
+  const [yyyy, mm, dd] = monKey.split("-").map(Number);
+  const monDate = new Date(yyyy, mm - 1, dd);
+  const idx = DAYS.indexOf(dayName);
+  if (idx < 0) return monKey;
+  const tDate = new Date(monDate.getFullYear(), monDate.getMonth(), monDate.getDate() + idx);
+  return `${tDate.getFullYear()}-${String(tDate.getMonth() + 1).padStart(2, "0")}-${String(tDate.getDate()).padStart(2, "0")}`;
+}
+
 function onCalClick(e) {
   const t = e.target.closest("[data-act]");
   if (!t) return;
   const act = t.dataset.act;
   const day = t.dataset.day;
   const slot = t.dataset.slot;
+  const prof = AppState.activeProfile;
+  const exactDate = getDateForDay(day);
+  if (!AppState.history[prof][exactDate]) AppState.history[prof][exactDate] = { steps: 0, water: 0, trained: false };
+  const hData = AppState.history[prof][exactDate];
+
   if (act === "toggle-train") {
-    AppState.entrenosDias[AppState.activeProfile][day] = !AppState.entrenosDias[AppState.activeProfile][day];
+    hData.trained = !hData.trained;
     saveAll(); syncToGithub(); render();
   } else if (act === "water") {
     const val = parseInt(t.dataset.val, 10);
-    // Si ya está en ese valor, lo restamos (para poder deseleccionar)
-    const cur = AppState.trackers[AppState.activeProfile].water[day] || 0;
-    AppState.trackers[AppState.activeProfile].water[day] = (cur === val) ? val - 1 : val;
+    hData.water = (hData.water === val) ? val - 1 : val;
+    saveAll(); syncToGithub(); render();
+  } else if (act === "water-add") {
+    hData.water = (hData.water || 0) + 1;
     saveAll(); syncToGithub(); render();
   } else if (act === "steps-add") {
-    const cur = AppState.trackers[AppState.activeProfile].steps[day] || 0;
-    AppState.trackers[AppState.activeProfile].steps[day] = cur + 500;
-    saveAll(); syncToGithub(); render();
-  } else if (act === "steps-sub") {
-    const cur = AppState.trackers[AppState.activeProfile].steps[day] || 0;
-    AppState.trackers[AppState.activeProfile].steps[day] = Math.max(0, cur - 500);
+    const val = parseInt(t.dataset.val, 10);
+    hData.steps = (hData.steps || 0) + val;
     saveAll(); syncToGithub(); render();
   } else if (act === "day-detail") {
     openDayDrawer(day);
@@ -1554,7 +1598,10 @@ function openDayDrawer(day) {
   const goals = GOALS[prof];
   const d = plan.semana.find(x => x.dia === day);
   const t = dayTotals(d);
-  const tr = AppState.entrenosDias[prof][day];
+  
+  const exactDate = getDateForDay(day);
+  const tr = AppState.history?.[prof]?.[exactDate]?.trained || false;
+  
   const other = prof === "fran" ? "lua" : "fran";
   const dOther = AppState.plans[other].semana.find(x => x.dia === day);
   const tOther = dayTotals(dOther);
@@ -2162,6 +2209,85 @@ function estimateMacros(text, title) {
 }
 
 /* ============================================================= */
+/* PROGRESO / HISTÓRICO                                           */
+/* ============================================================= */
+function renderProgress() {
+  const root = document.getElementById("progress-content");
+  const prof = AppState.activeProfile;
+  const hist = AppState.history[prof] || {};
+  
+  // Agrupar por mes
+  const months = {};
+  for (const [dateStr, data] of Object.entries(hist)) {
+    const [y, m, d] = dateStr.split("-");
+    const mk = `${y}-${m}`;
+    if (!months[mk]) months[mk] = [];
+    months[mk].push({ date: dateStr, day: parseInt(d,10), data });
+  }
+  
+  // Ordenar meses descendente
+  const sortedMonths = Object.keys(months).sort().reverse();
+  
+  if (sortedMonths.length === 0) {
+    root.innerHTML = `<div class="empty-state"><span class="emo">📉</span><h3>Aún no hay datos</h3><p>Suma pasos o agua en la pestaña Nutrición para comenzar tu historial.</p></div>`;
+    return;
+  }
+  
+  let html = `<div style="display:grid;gap:16px;">`;
+  
+  for (const mk of sortedMonths) {
+    const [y, m] = mk.split("-");
+    const monthNames = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+    const monthName = monthNames[parseInt(m,10)-1];
+    
+    // Ordenar días del mes (descendente)
+    const days = months[mk].sort((a,b) => b.date.localeCompare(a.date));
+    
+    html += `
+      <div class="fixed-panel" open style="margin:0;">
+        <summary style="font-size:16px;background:var(--card-2);border-bottom:1px solid var(--border)">
+          🗓️ ${monthName} ${y}
+        </summary>
+        <div style="padding:0;">
+    `;
+    
+    for (const item of days) {
+      const d = item.data;
+      const steps = d.steps || 0;
+      const water = d.water || 0;
+      const tr = d.trained || false;
+      
+      let stepColor = "#f59e0b";
+      let stepBadge = "";
+      if (steps >= 6000) stepColor = "#86efac";
+      if (steps >= 10000) { stepColor = "#10b981"; stepBadge = "🔥"; }
+      if (steps >= 12000) { stepColor = "#fbbf24"; stepBadge = "🌟"; }
+      
+      const stepGoal = 12000;
+      const stepPct = Math.min(100, (steps / stepGoal) * 100);
+
+      html += `
+        <div style="padding:14px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:8px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;font-weight:700;font-size:14px;">
+            <span>Día ${item.day} ${tr ? '<span title="Día de entrenamiento" style="margin-left:4px;font-size:12px;">🏋️</span>' : ''}</span>
+            <span style="color:var(--muted);font-size:12px;display:flex;gap:12px">
+              <span>💧 ${water} vasos</span>
+              <span style="color:${stepColor}">${steps} pasos ${stepBadge}</span>
+            </span>
+          </div>
+          <div class="steps-bar" style="margin:0"><div class="fill" style="width:${stepPct}%;background:${stepColor}"></div></div>
+        </div>
+      `;
+    }
+    
+    html += `</div></div>`;
+  }
+  
+  html += `</div>`;
+  root.innerHTML = html;
+}
+
+/* ============================================================= */
 /* TOAST + CONFETTI                                               */
 /* ============================================================= */
 function toast(msg, err) {
@@ -2249,21 +2375,13 @@ async function fetchFromGithub() {
 
 async function syncToGithub() {
   if (!ghConfig.user || !ghConfig.repo || !ghConfig.token) {
-    // Si no tiene config, descargar el JSON para que lo puedan subir manualmente si quieren
-    const dataStr = JSON.stringify({ plans: AppState.plans, trackers: AppState.trackers, updatedAt: Date.now() }, null, 2);
-    const blob = new Blob([dataStr], { type: "application/json" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "nutri_data.json";
-    a.click();
-    toast("✅ Plan guardado localmente (configura GitHub para sync en la nube)");
     return;
   }
   
   toast("☁️ Subiendo cambios a GitHub...", false);
   try {
     AppState.lastSync = Date.now();
-    const dataStr = JSON.stringify({ plans: AppState.plans, trackers: AppState.trackers, updatedAt: AppState.lastSync });
+    const dataStr = JSON.stringify({ plans: AppState.plans, trackers: AppState.trackers, history: AppState.history, updatedAt: AppState.lastSync });
     const content = btoa(unescape(encodeURIComponent(dataStr)));
     
     let sha = ghConfig.lastSha;
@@ -2353,7 +2471,10 @@ function init() {
   document.querySelectorAll(".profile-tabs button").forEach(b => b.onclick = () => {
     AppState.activeProfile = b.dataset.prof; saveAll(); render();
   });
-  document.querySelectorAll(".bottomnav button").forEach(b => b.onclick = () => setSection(b.dataset.sec));
+  document.querySelectorAll(".bottomnav button").forEach(b => b.onclick = () => {
+    setSection(b.dataset.sec);
+    if (b.dataset.sec === "progress") renderProgress();
+  });
   document.getElementById("fab").onclick = () => setSection("shop");
 
   fetchFromGithub();
