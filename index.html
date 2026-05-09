@@ -984,9 +984,6 @@ body.dark .banner-train { color: #fed7aa; background: linear-gradient(135deg, rg
     <div id="import-content"></div>
   </main>
 
-  <!-- FAB -->
-  <button id="fab" class="fab" aria-label="Ir a la compra">🛒</button>
-
   <!-- PROGRESO -->
   <main id="sec-progress" class="section">
     <h1 class="section-title">📅 Calendario</h1>
@@ -1196,8 +1193,6 @@ function setSection(name) {
   document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
   document.getElementById("sec-" + name).classList.add("active");
   document.querySelectorAll(".bottomnav button").forEach(b => b.classList.toggle("active", b.dataset.sec === name));
-  const fab = document.getElementById("fab");
-  fab.style.display = name === "nutri" ? "" : "none";
   window.scrollTo({ top: 0, behavior: "instant" });
 }
 
@@ -1312,7 +1307,7 @@ function renderNutri() {
         </div>
       </div>
 
-      ${getTrackersHtml(exactD, prof, day.dia)}
+      ${getTrackersHtml(exactDate, prof, day.dia)}
 
       ${renderMealBig(day, "comida", "🍽️ Comida")}
         ${renderMealBig(day, "cena", "🌙 Cena")}
@@ -2843,7 +2838,6 @@ function init() {
     setSection(b.dataset.sec);
     if (b.dataset.sec === "progress") renderProgress();
   });
-  document.getElementById("fab").onclick = () => setSection("shop");
 
   fetchFromGithub();
 
