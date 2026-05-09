@@ -873,6 +873,22 @@ body.dark .banner-train { color: #fed7aa; background: linear-gradient(135deg, rg
 }
 @keyframes fillWater { from { height: 0; opacity: 0; } to { height: 85%; opacity: 1; } }
 
+/* ============ CALENDAR GRID ============ */
+.cal-header { display: flex; align-items: center; justify-content: space-between; padding: 16px; background: var(--card); border-radius: var(--r-md); border: 1px solid var(--border); margin-bottom: 16px; }
+.cal-header button { font-size: 16px; width: 36px; height: 36px; border-radius: 50%; background: var(--bg-2); border: 1px solid var(--border); display: grid; place-items: center; color: var(--text); }
+.cal-header h3 { margin: 0; font-size: 16px; text-transform: capitalize; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-bottom: 24px; }
+.cal-dow { text-align: center; font-size: 11px; font-weight: 700; color: var(--muted); padding: 4px 0; }
+.cal-day { aspect-ratio: 1; background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 4px; display: flex; flex-direction: column; cursor: pointer; position: relative; }
+.cal-day.empty { background: transparent; border-color: transparent; cursor: default; }
+.cal-day.today { border-color: var(--fran); border-width: 2px; }
+.cal-day.future { opacity: 0.5; pointer-events: none; }
+.cal-day .d-num { font-size: 12px; font-weight: 700; margin-bottom: auto; }
+.cal-badges { display: flex; gap: 2px; flex-wrap: wrap; justify-content: flex-end; }
+.cal-badges span { font-size: 10px; }
+.cal-comments { display: flex; flex-direction: column; gap: 8px; }
+.cal-comment-card { background: var(--card); padding: 12px; border-radius: 8px; border: 1px solid var(--border); font-size: 13px; display: flex; flex-direction: column; gap: 4px; }
+
 /* ============ TOAST + CONFETTI ============ */
 .toast-stack { position: fixed; bottom: calc(96px + var(--safe-bot)); left: 50%; transform: translateX(-50%); z-index: 1000; display: flex; flex-direction: column; gap: 8px; }
 .toast {
@@ -1019,7 +1035,8 @@ const AppState = {
   trackers: { fran: { water: {}, steps: {} }, lua: { water: {}, steps: {} } },
   history: { fran: {}, lua: {} }, // YYYY-MM-DD -> { steps: 0, water: 0, trained: false, comments: {} }
   lastSync: 0,
-  selectedDate: null // YYYY-MM-DD
+  selectedDate: null, // YYYY-MM-DD
+  progressMonth: null // YYYY-MM
 };
 function emptyPlan() {
   return {
@@ -1286,9 +1303,16 @@ function renderNutri() {
             <h3>Agua ${water >= 8 ? "✅" : ""}</h3>
             <span>${(water * 250)/1000}L / 2L</span>
           </div>
-          <div class="water-visual">
-            ${Array(Math.floor(water / 4)).fill(0).map(() => `<div style="font-size:32px; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.2));">🍾</div>`).join("")}
-            ${Array(water % 4).fill(0).map(() => `<div class="water-glass filled" style="width:28px;height:36px;position:relative"></div>`).join("")}
+          <div class="water-visual" style="display:flex; justify-content:center; align-items:flex-end; gap:10px; min-height:44px; flex-wrap:wrap; margin:16px 0;">
+            ${Array(Math.floor(water / 4)).fill(0).map(() => `
+              <div style="filter:drop-shadow(0 2px 4px rgba(59,130,246,0.3));">
+                <svg width="22" height="40" viewBox="0 0 24 40" fill="rgba(59,130,246,0.7)" stroke="#2563eb" stroke-width="1.5">
+                  <rect x="9" y="2" width="6" height="5" rx="1.5" fill="#cbd5e1" stroke="#94a3b8"/>
+                  <path d="M10 7 h4 v4 c0 2 3 4 4 6 v19 a4 4 0 0 1 -4 4 H10 a4 4 0 0 1 -4 -4 V17 c1 -2 4 -4 4 -6 V7 Z"/>
+                </svg>
+              </div>
+            `).join("")}
+            ${Array(water % 4).fill(0).map(() => `<div class="water-glass filled" style="width:24px;height:32px;position:relative"></div>`).join("")}
             ${water === 0 ? '<span style="color:var(--muted);font-size:13px;padding:8px 0">Aún no has bebido agua</span>' : ''}
           </div>
           <div style="display:flex;gap:8px;margin-top:12px">
@@ -2352,85 +2376,99 @@ function renderProgress() {
   const root = document.getElementById("progress-content");
   const prof = AppState.activeProfile;
   const hist = AppState.history[prof] || {};
-  
-  // Agrupar por mes
-  const months = {};
-  for (const [dateStr, data] of Object.entries(hist)) {
-    const [y, m, d] = dateStr.split("-");
-    const mk = `${y}-${m}`;
-    if (!months[mk]) months[mk] = [];
-    months[mk].push({ date: dateStr, day: parseInt(d,10), data });
-  }
-  
-  // Ordenar meses descendente
-  const sortedMonths = Object.keys(months).sort().reverse();
-  
-  if (sortedMonths.length === 0) {
-    root.innerHTML = `<div class="empty-state"><span class="emo">📉</span><h3>Aún no hay datos</h3><p>Suma pasos o agua en la pestaña Nutrición para comenzar tu historial.</p></div>`;
-    return;
-  }
-  
-  let html = `<div style="display:grid;gap:16px;">`;
-  
-  for (const mk of sortedMonths) {
-    const [y, m] = mk.split("-");
-    const monthNames = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
-    const monthName = monthNames[parseInt(m,10)-1];
-    
-    // Ordenar días del mes (descendente)
-    const days = months[mk].sort((a,b) => b.date.localeCompare(a.date));
-    
-    html += `
-      <div class="fixed-panel" open style="margin:0;">
-        <summary style="font-size:16px;background:var(--card-2);border-bottom:1px solid var(--border)">
-          🗓️ ${monthName} ${y}
-        </summary>
-        <div style="padding:0;">
-    `;
-    
-    for (const item of days) {
-      const d = item.data;
-      const steps = d.steps || 0;
-      const water = d.water || 0;
-      const tr = d.trained || false;
-      const commC = d.comments?.comida || "";
-      const commD = d.comments?.cena || "";
-      
-      let stepColor = "#f59e0b";
-      let stepBadge = "";
-      if (steps >= 6000) stepColor = "#86efac";
-      if (steps >= 10000) { stepColor = "#10b981"; stepBadge = "🔥"; }
-      if (steps >= 12000) { stepColor = "#fbbf24"; stepBadge = "🌟"; }
-      
-      const stepGoal = 12000;
-      const stepPct = Math.min(100, (steps / stepGoal) * 100);
 
-      html += `
-        <div style="padding:14px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:8px;">
-          <div style="display:flex;align-items:center;justify-content:space-between;font-weight:700;font-size:14px;">
-            <span>Día ${item.day} ${tr ? '<span title="Día de entrenamiento" style="margin-left:4px;font-size:12px;">🏋️</span>' : ''}</span>
-            <span style="color:var(--muted);font-size:12px;display:flex;gap:12px;align-items:center">
-              <span>💧 ${water} vasos</span>
-              <span style="color:${stepColor}">${steps} pasos ${stepBadge}</span>
-              <button onclick="openEditPastModal('${item.date}')" style="background:var(--bg-2);border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-size:11px">✏️</button>
-            </span>
-          </div>
-          <div class="steps-bar" style="margin:0"><div class="fill" style="width:${stepPct}%;background:${stepColor}"></div></div>
-          ${commC || commD ? `
-            <div style="background:var(--bg-2);padding:10px;border-radius:8px;font-size:12px;margin-top:4px;display:flex;flex-direction:column;gap:6px;border:1px solid var(--border)">
-              ${commC ? `<div><strong style="color:var(--text)">☀️ Comida:</strong> ${escapeHtml(commC)}</div>` : ''}
-              ${commD ? `<div><strong style="color:var(--text)">🌙 Cena:</strong> ${escapeHtml(commD)}</div>` : ''}
-            </div>
-          ` : ''}
-        </div>
-      `;
-    }
-    
-    html += `</div></div>`;
+  // Set default month
+  if (!AppState.progressMonth) {
+    const d = new Date();
+    AppState.progressMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   }
-  
+  const [yyyy, mm] = AppState.progressMonth.split("-").map(Number);
+  const monthNames = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+  const mName = monthNames[mm - 1];
+
+  // Calendar logic
+  const firstDayObj = new Date(yyyy, mm - 1, 1);
+  const lastDayObj = new Date(yyyy, mm, 0);
+  const daysInMonth = lastDayObj.getDate();
+  const startDow = (firstDayObj.getDay() + 6) % 7; // 0=Lunes
+
+  const todayKey = currentDateKey();
+
+  let html = `
+    <div class="cal-header">
+      <button data-act="cal-prev">◀</button>
+      <h3>${mName} ${yyyy}</h3>
+      <button data-act="cal-next">▶</button>
+    </div>
+    <div class="cal-grid">
+      ${["L","M","X","J","V","S","D"].map(d => `<div class="cal-dow">${d}</div>`).join("")}
+  `;
+
+  for (let i = 0; i < startDow; i++) {
+    html += `<div class="cal-day empty"></div>`;
+  }
+
+  const commentsHtml = [];
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${yyyy}-${String(mm).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    const hData = hist[dateStr] || {};
+    const isToday = dateStr === todayKey;
+    const isFuture = dateStr > todayKey;
+
+    let badges = "";
+    if (hData.trained) badges += `<span title="Entrenado">🏋️</span>`;
+    if (hData.water >= 8) badges += `<span title="2L Agua">💧</span>`;
+    if (hData.steps >= 10000) badges += `<span title="10k+ Pasos">🔥</span>`;
+    else if (hData.steps >= 6000) badges += `<span title="6k+ Pasos" style="color:#10b981">👟</span>`;
+
+    let cls = "cal-day";
+    if (isToday) cls += " today";
+    if (isFuture) cls += " future";
+
+    html += `
+      <div class="${cls}" ${isFuture ? "" : `onclick="openEditPastModal('${dateStr}')"`}>
+        <div class="d-num">${d}</div>
+        <div class="cal-badges">${badges}</div>
+      </div>
+    `;
+
+    if (hData.comments && (hData.comments.comida || hData.comments.cena)) {
+      commentsHtml.push({ day: d, commC: hData.comments.comida, commD: hData.comments.cena });
+    }
+  }
+
   html += `</div>`;
+
+  if (commentsHtml.length > 0) {
+    html += `
+      <h3 style="margin-top:24px;margin-bottom:12px;font-size:16px;">📝 Diario del mes</h3>
+      <div class="cal-comments">
+        ${commentsHtml.map(c => `
+          <div class="cal-comment-card">
+            <strong>Día ${c.day}</strong>
+            ${c.commC ? `<div><span style="color:var(--text);font-weight:600">☀️ Comida:</span> <span style="color:var(--muted)">${escapeHtml(c.commC)}</span></div>` : ''}
+            ${c.commD ? `<div><span style="color:var(--text);font-weight:600">🌙 Cena:</span> <span style="color:var(--muted)">${escapeHtml(c.commD)}</span></div>` : ''}
+          </div>
+        `).join("")}
+      </div>
+    `;
+  }
+
   root.innerHTML = html;
+
+  // Bind clicks
+  root.querySelectorAll("button[data-act]").forEach(b => {
+    b.addEventListener("click", e => {
+      const act = e.currentTarget.dataset.act;
+      let m = mm;
+      let y = yyyy;
+      if (act === "cal-prev") { m--; if(m<1) { m=12; y--; } }
+      if (act === "cal-next") { m++; if(m>12) { m=1; y++; } }
+      AppState.progressMonth = `${y}-${String(m).padStart(2, "0")}`;
+      renderProgress();
+    });
+  });
 }
 
 /* ============================================================= */
