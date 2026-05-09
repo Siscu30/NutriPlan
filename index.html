@@ -18,10 +18,17 @@ body {
   -webkit-tap-highlight-color: transparent;
   font-size: 15px;
   line-height: 1.45;
-  transition: background-color .3s ease, color .3s ease;
+  transition: background .4s ease, color .3s ease;
+  background-attachment: fixed !important;
+}
+body.profile-fran {
+  background: radial-gradient(circle at 15% 50%, rgba(59,130,246,0.12), transparent 45%), radial-gradient(circle at 85% 30%, rgba(14,165,233,0.12), transparent 45%), var(--bg-color);
+}
+body.profile-lua {
+  background: radial-gradient(circle at 15% 50%, rgba(45,212,191,0.15), transparent 45%), radial-gradient(circle at 85% 30%, rgba(244,114,182,0.12), transparent 45%), var(--bg-color);
 }
 body, .topbar, .bottomnav, .day-col, .day-card-big, .meal-card, .cat-block, .shop-item, .modal, .drawer, .plan-card, .preview-day, .dropzone, .fixed-panel, .fixed-block, .profile-summary, .alt-card, .day-pick, .ings-input, .field-block input, .field-block textarea, .field input, .toggle-train, .seg, .meal-actions button, .day-pill {
-  transition: background-color .3s ease, color .3s ease, border-color .3s ease;
+  transition: background .3s ease, color .3s ease, border-color .3s ease, box-shadow .3s ease;
 }
 button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
 input, textarea { font: inherit; color: inherit; }
@@ -30,23 +37,24 @@ input:focus, textarea:focus, button:focus { outline: none; }
 
 :root {
   /* LIGHT (default) */
-  --bg: #f8fafc;
+  --bg-color: #f8fafc;
+  --bg: var(--bg-color);
   --bg-2: #f1f5f9;
-  --card: rgba(255, 255, 255, 0.7);
-  --card-2: rgba(248, 250, 252, 0.6);
-  --border: rgba(226, 232, 240, 0.6);
+  --card: rgba(255, 255, 255, 0.75);
+  --card-2: rgba(248, 250, 252, 0.65);
+  --border: rgba(255, 255, 255, 0.5);
   --border-2: rgba(203, 213, 225, 0.8);
   --text: #0f172a;
   --muted: #64748b;
   --dim: #94a3b8;
   --bar-bg: rgba(241, 245, 249, 0.8);
-  --topbar-bg: rgba(255, 255, 255, 0.85);
-  --bottomnav-bg: rgba(255, 255, 255, 0.9);
+  --topbar-bg: rgba(255, 255, 255, 0.75);
+  --bottomnav-bg: rgba(255, 255, 255, 0.85);
   --modal-backdrop: rgba(15,23,42,.45);
   --shadow: 0 4px 16px rgba(15,23,42,.04);
   --shadow-md: 0 8px 24px rgba(15,23,42,.06);
   --shadow-lg: 0 24px 48px rgba(15,23,42,.12);
-  --shadow-card: 0 1px 8px rgba(15,23,42,.06);
+  --shadow-card: 0 4px 20px rgba(15,23,42,.05);
   --kcal: #f59e0b;
   --prot: #ef4444;
   --carb: #f97316;
@@ -65,21 +73,22 @@ input:focus, textarea:focus, button:focus { outline: none; }
   --safe-bot: env(safe-area-inset-bottom, 0px);
 }
 body.dark {
-  --bg: #0f172a;
+  --bg-color: #0f172a;
+  --bg: var(--bg-color);
   --bg-2: #0b1322;
   --card: rgba(30, 41, 59, 0.65);
   --card-2: rgba(36, 51, 73, 0.5);
-  --border: rgba(51, 65, 85, 0.6);
+  --border: rgba(255, 255, 255, 0.08);
   --border-2: rgba(71, 85, 105, 0.8);
-  --text: #e2e8f0;
+  --text: #f8fafc;
   --muted: #94a3b8;
   --dim: #64748b;
   --bar-bg: rgba(11, 19, 34, 0.8);
-  --topbar-bg: rgba(15, 23, 42, 0.85);
-  --bottomnav-bg: rgba(15, 23, 42, 0.9);
-  --modal-backdrop: rgba(2,6,15,.65);
+  --topbar-bg: rgba(15, 23, 42, 0.75);
+  --bottomnav-bg: rgba(15, 23, 42, 0.85);
+  --modal-backdrop: rgba(2,6,15,.75);
   --shadow-card: 0 8px 32px rgba(0,0,0,.45);
-  --shadow-lg: 0 24px 64px rgba(0,0,0,.55);
+  --shadow-lg: 0 24px 64px rgba(0,0,0,.65);
   --kcal: #fbbf24;
   --prot: #f87171;
   --carb: #fb923c;
@@ -248,12 +257,14 @@ body.dark .profile-tabs button.active[data-prof="lua"]  { color: #ccfbf1; }
 
 /* ============ NUTRICIÓN HEADER ============ */
 .profile-summary {
-  background: linear-gradient(135deg, var(--card), var(--card-2));
+  background: var(--card);
+  backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
   border: 1px solid var(--border);
   border-radius: var(--r-xl);
-  padding: 16px;
-  margin-bottom: 14px;
-  display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+  padding: 18px;
+  margin-bottom: 16px;
+  display: flex; flex-wrap: wrap; gap: 14px; align-items: center;
+  box-shadow: var(--shadow-card);
 }
 .avatar {
   width: 54px; height: 54px; border-radius: 50%;
@@ -320,7 +331,7 @@ body.dark .profile-tabs button.active[data-prof="lua"]  { color: #ccfbf1; }
 @keyframes dayfade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 .day-card-big {
   background: var(--card);
-  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
   border: 1px solid var(--border);
   border-radius: var(--r-xl);
   overflow: hidden;
@@ -430,12 +441,54 @@ body.dark .train-note-tip { color: #fed7aa; background: rgba(249,115,22,.12); }
   align-self: flex-start;
 }
 
+/* ============ WIDGETS AGUA Y PASOS ============ */
+.trackers-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+  margin-bottom: 16px; margin-top: -6px;
+}
+.tracker-widget {
+  background: var(--card); border: 1px solid var(--border);
+  backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+  border-radius: var(--r-lg); padding: 14px;
+  box-shadow: var(--shadow-card); display: flex; flex-direction: column; gap: 8px;
+}
+.tracker-widget .tw-head { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 14px; color: var(--text); }
+.tracker-widget .tw-head .tw-icon { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: 14px; }
+.tracker-widget.water .tw-icon { background: rgba(59,130,246,.15); color: #3b82f6; }
+.tracker-widget.steps .tw-icon { background: rgba(16,185,129,.15); color: #10b981; }
+
+.water-glasses { display: flex; flex-wrap: wrap; gap: 4px; }
+.water-glass {
+  flex: 1; min-width: 18px; max-width: 24px; height: 28px; border-radius: 6px;
+  background: rgba(59,130,246,.1); border: 1px solid rgba(59,130,246,.2);
+  position: relative; overflow: hidden; cursor: pointer; transition: transform .1s;
+}
+.water-glass:active { transform: scale(.9); }
+.water-glass.filled { background: rgba(59,130,246,.2); border-color: #3b82f6; }
+.water-glass.filled::after {
+  content: ""; position: absolute; bottom: 0; left: 0; right: 0; top: 20%;
+  background: linear-gradient(180deg, #60a5fa, #3b82f6); border-radius: 0 0 5px 5px;
+}
+
+.steps-ctrl { display: flex; align-items: center; gap: 8px; }
+.steps-input {
+  flex: 1; width: 100%; min-width: 0; padding: 6px 10px; border-radius: 8px;
+  background: var(--bg-2); border: 1px solid var(--border); color: var(--text); font-weight: 700; font-size: 16px;
+}
+.steps-btn {
+  width: 30px; height: 30px; border-radius: 8px; background: rgba(16,185,129,.15); color: #10b981;
+  font-weight: 800; font-size: 16px; display: grid; place-items: center; flex: none;
+}
+.steps-btn:active { transform: scale(.9); background: #10b981; color: #fff; }
+.steps-bar { height: 6px; border-radius: 999px; background: rgba(16,185,129,.15); overflow: hidden; margin-top: 4px; }
+.steps-bar .fill { height: 100%; background: #10b981; transition: width .3s ease; }
+
 /* ============ FIXED PANEL ============ */
 .fixed-panel {
   margin-top: 14px;
   background: var(--card); border: 1px solid var(--border);
-  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-  border-radius: var(--r-lg); overflow: hidden;
+  backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+  border-radius: var(--r-lg); overflow: hidden; box-shadow: var(--shadow-card);
 }
 .fixed-panel summary {
   padding: 14px 16px; cursor: pointer; font-weight: 700;
@@ -908,6 +961,7 @@ const AppState = {
   plans: { fran: emptyPlan(), lua: emptyPlan() },
   entrenosDias: { fran: emptyEntrenos(), lua: emptyEntrenos() },
   shopChecked: {}, // ingredient name -> true
+  trackers: { fran: { water: {}, steps: {} }, lua: { water: {}, steps: {} } },
   lastSync: 0
 };
 function emptyPlan() {
@@ -944,6 +998,7 @@ function loadAll() {
     const data = JSON.parse(localStorage.getItem("nutri_app_data") || "null");
     if (data?.plans) AppState.plans = mergePlans(data.plans);
     if (data?.activeProfile) AppState.activeProfile = data.activeProfile;
+    if (data?.trackers) AppState.trackers = data.trackers;
     const ent = JSON.parse(localStorage.getItem("nutri_entrenos") || "null");
     if (ent) AppState.entrenosDias = { fran: { ...emptyEntrenos(), ...(ent.fran||{}) }, lua: { ...emptyEntrenos(), ...(ent.lua||{}) } };
     // Auto-reset entrenos al inicio de cada semana (lunes)
@@ -974,7 +1029,7 @@ function mergePlans(p) {
   return out;
 }
 function saveAll() {
-  localStorage.setItem("nutri_app_data", JSON.stringify({ plans: AppState.plans, activeProfile: AppState.activeProfile }));
+  localStorage.setItem("nutri_app_data", JSON.stringify({ plans: AppState.plans, activeProfile: AppState.activeProfile, trackers: AppState.trackers }));
   localStorage.setItem("nutri_entrenos", JSON.stringify(AppState.entrenosDias));
   localStorage.setItem("nutri_entrenos_fecha", currentWeekKey());
   localStorage.setItem("nutri_shop_checked", JSON.stringify(AppState.shopChecked));
@@ -1075,6 +1130,13 @@ function renderNutri() {
   const dt = dayTotals(day);
   const meriendaSpecial = day.meriendaEspecial && plan.meriendasFijas && day.meriendaEspecial.trim() !== plan.meriendasFijas.trim();
 
+  // Asegurar que existan los trackers
+  if (!AppState.trackers) AppState.trackers = { fran: { water: {}, steps: {} }, lua: { water: {}, steps: {} } };
+  const water = AppState.trackers[prof].water[day.dia] || 0;
+  const steps = AppState.trackers[prof].steps[day.dia] || 0;
+  const stepGoal = 10000;
+  const stepPct = Math.min(100, (steps / stepGoal) * 100);
+
   root.innerHTML = `
     <section class="profile-summary">
       <div class="avatar">${initial}</div>
@@ -1111,14 +1173,36 @@ function renderNutri() {
           <button class="btn-train${tr ? ' on' : ''}" data-act="toggle-train" data-day="${day.dia}">
             ${tr ? "🏋️ Entrenamiento activo ✓" : "🏋️ Día de entrenamiento"}
           </button>
-          <div class="day-totals">
-            <span class="chip kcal">🔥 ${Math.round(dt.kcal)} kcal</span>
-            <span class="chip prot">P ${Math.round(dt.prot)}g</span>
-            <span class="chip carb">C ${Math.round(dt.carb)}g</span>
-            <span class="chip fat">G ${Math.round(dt.fat)}g</span>
-          </div>
+        <div class="day-totals">
+          <span class="chip kcal">🔥 ${Math.round(dt.kcal)} kcal</span>
+          <span class="chip prot">P ${Math.round(dt.prot)}g</span>
+          <span class="chip carb">C ${Math.round(dt.carb)}g</span>
+          <span class="chip fat">G ${Math.round(dt.fat)}g</span>
         </div>
-        ${renderMealBig(day, "comida", "🍽️ Comida")}
+      </div>
+
+      <div class="trackers-row">
+        <!-- AGUA -->
+        <div class="tracker-widget water">
+          <div class="tw-head"><div class="tw-icon">💧</div> Agua</div>
+          <div class="water-glasses">
+            ${Array.from({length: 8}).map((_, i) => `<div class="water-glass${i < water ? ' filled' : ''}" data-act="water" data-day="${day.dia}" data-val="${i+1}"></div>`).join("")}
+          </div>
+          <small style="color:var(--muted);font-size:11px">${water * 250} ml / 2000 ml</small>
+        </div>
+        <!-- PASOS -->
+        <div class="tracker-widget steps">
+          <div class="tw-head"><div class="tw-icon">👟</div> Pasos</div>
+          <div class="steps-ctrl">
+            <button class="steps-btn" data-act="steps-sub" data-day="${day.dia}">-</button>
+            <input type="number" class="steps-input" value="${steps}" id="steps-in-${day.dia}" />
+            <button class="steps-btn" data-act="steps-add" data-day="${day.dia}">+</button>
+          </div>
+          <div class="steps-bar"><div class="fill" style="width:${stepPct}%"></div></div>
+        </div>
+      </div>
+
+      ${renderMealBig(day, "comida", "🍽️ Comida")}
         ${renderMealBig(day, "cena", "🌙 Cena")}
       </div>
       ${tr ? `<div class="train-note-tip">💡 Día de entreno: considera añadir una fuente extra de proteína o hidratos en la comida</div>` : ""}
@@ -1155,8 +1239,17 @@ function renderNutri() {
 
   const brk = document.getElementById("brk-edit");
   const mer = document.getElementById("mer-edit");
-  brk?.addEventListener("change", () => { plan.desayunoFijo = brk.value.trim(); saveAll(); render(); });
-  mer?.addEventListener("change", () => { plan.meriendasFijas = mer.value.trim(); saveAll(); render(); });
+  brk?.addEventListener("change", () => { plan.desayunoFijo = brk.value.trim(); saveAll(); syncToGithub(); render(); });
+  mer?.addEventListener("change", () => { plan.meriendasFijas = mer.value.trim(); saveAll(); syncToGithub(); render(); });
+
+  // Event listener para input de pasos
+  const stInp = document.getElementById("steps-in-" + sel);
+  stInp?.addEventListener("change", (e) => {
+    let v = parseInt(e.target.value, 10);
+    if (isNaN(v) || v < 0) v = 0;
+    AppState.trackers[prof].steps[sel] = v;
+    saveAll(); syncToGithub(); render();
+  });
 }
 
 function renderMealBig(day, slot, title) {
@@ -1215,7 +1308,21 @@ function onCalClick(e) {
   const slot = t.dataset.slot;
   if (act === "toggle-train") {
     AppState.entrenosDias[AppState.activeProfile][day] = !AppState.entrenosDias[AppState.activeProfile][day];
-    saveAll(); render();
+    saveAll(); syncToGithub(); render();
+  } else if (act === "water") {
+    const val = parseInt(t.dataset.val, 10);
+    // Si ya está en ese valor, lo restamos (para poder deseleccionar)
+    const cur = AppState.trackers[AppState.activeProfile].water[day] || 0;
+    AppState.trackers[AppState.activeProfile].water[day] = (cur === val) ? val - 1 : val;
+    saveAll(); syncToGithub(); render();
+  } else if (act === "steps-add") {
+    const cur = AppState.trackers[AppState.activeProfile].steps[day] || 0;
+    AppState.trackers[AppState.activeProfile].steps[day] = cur + 500;
+    saveAll(); syncToGithub(); render();
+  } else if (act === "steps-sub") {
+    const cur = AppState.trackers[AppState.activeProfile].steps[day] || 0;
+    AppState.trackers[AppState.activeProfile].steps[day] = Math.max(0, cur - 500);
+    saveAll(); syncToGithub(); render();
   } else if (act === "day-detail") {
     openDayDrawer(day);
   } else if (act === "swap") {
@@ -1281,7 +1388,7 @@ function openSwapModal(day, slot) {
           [a.comida, b.comida] = [b.comida, a.comida];
           [a.cena, b.cena] = [b.cena, a.cena];
         }
-        saveAll(); closeModal(); render();
+        saveAll(); syncToGithub(); closeModal(); render();
         toast(`✅ Intercambiado: ${day} ↔ ${target}`);
       }
     });
@@ -1359,7 +1466,7 @@ function openSubstModal(day, slot) {
       const a = alts[parseInt(b.dataset.i,10)];
       const m = plan.semana.find(d => d.dia === day)[slot];
       Object.assign(m, a);
-      saveAll(); closeModal(); render();
+      saveAll(); syncToGithub(); closeModal(); render();
       toast(`✅ ${a.nombre} guardado`);
     }
   });
@@ -1428,7 +1535,7 @@ function openEditModal(day, slot) {
         meal.proteinas = parseFloat(document.getElementById("ed-p").value)||0;
         meal.carbohidratos = parseFloat(document.getElementById("ed-c").value)||0;
         meal.grasas = parseFloat(document.getElementById("ed-g").value)||0;
-        saveAll(); closeModal(); render();
+        saveAll(); syncToGithub(); closeModal(); render();
         toast("✅ Cambios guardados");
       }
     });
@@ -2131,6 +2238,7 @@ async function fetchFromGithub() {
       saveGhConfig(ghConfig);
       if (data.plans && data.updatedAt && (!AppState.lastSync || data.updatedAt > AppState.lastSync)) {
         AppState.plans = mergePlans(data.plans);
+        if (data.trackers) AppState.trackers = data.trackers;
         AppState.lastSync = data.updatedAt;
         saveAll(); render();
         toast("☁️ Sincronizado de la nube");
@@ -2142,7 +2250,7 @@ async function fetchFromGithub() {
 async function syncToGithub() {
   if (!ghConfig.user || !ghConfig.repo || !ghConfig.token) {
     // Si no tiene config, descargar el JSON para que lo puedan subir manualmente si quieren
-    const dataStr = JSON.stringify({ plans: AppState.plans, updatedAt: Date.now() }, null, 2);
+    const dataStr = JSON.stringify({ plans: AppState.plans, trackers: AppState.trackers, updatedAt: Date.now() }, null, 2);
     const blob = new Blob([dataStr], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
@@ -2155,7 +2263,7 @@ async function syncToGithub() {
   toast("☁️ Subiendo cambios a GitHub...", false);
   try {
     AppState.lastSync = Date.now();
-    const dataStr = JSON.stringify({ plans: AppState.plans, updatedAt: AppState.lastSync });
+    const dataStr = JSON.stringify({ plans: AppState.plans, trackers: AppState.trackers, updatedAt: AppState.lastSync });
     const content = btoa(unescape(encodeURIComponent(dataStr)));
     
     let sha = ghConfig.lastSha;
