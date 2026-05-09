@@ -5,13 +5,13 @@
 <meta name="theme-color" content="#f8fafc" id="theme-color-meta">
 <title>NutriApp 🥗</title>
 <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
-
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 /* ============ RESET & BASE ============ */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; overscroll-behavior: none; }
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
   background: var(--bg);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
@@ -32,20 +32,20 @@ input:focus, textarea:focus, button:focus { outline: none; }
   /* LIGHT (default) */
   --bg: #f8fafc;
   --bg-2: #f1f5f9;
-  --card: #ffffff;
-  --card-2: #f8fafc;
-  --border: #e2e8f0;
-  --border-2: #cbd5e1;
+  --card: rgba(255, 255, 255, 0.7);
+  --card-2: rgba(248, 250, 252, 0.6);
+  --border: rgba(226, 232, 240, 0.6);
+  --border-2: rgba(203, 213, 225, 0.8);
   --text: #0f172a;
   --muted: #64748b;
   --dim: #94a3b8;
-  --bar-bg: #f1f5f9;
-  --topbar-bg: #ffffff;
-  --bottomnav-bg: #ffffff;
-  --modal-backdrop: rgba(15,23,42,.35);
-  --shadow: 0 1px 8px rgba(15,23,42,.08);
-  --shadow-md: 0 6px 18px rgba(15,23,42,.10);
-  --shadow-lg: 0 18px 48px rgba(15,23,42,.18);
+  --bar-bg: rgba(241, 245, 249, 0.8);
+  --topbar-bg: rgba(255, 255, 255, 0.85);
+  --bottomnav-bg: rgba(255, 255, 255, 0.9);
+  --modal-backdrop: rgba(15,23,42,.45);
+  --shadow: 0 4px 16px rgba(15,23,42,.04);
+  --shadow-md: 0 8px 24px rgba(15,23,42,.06);
+  --shadow-lg: 0 24px 48px rgba(15,23,42,.12);
   --shadow-card: 0 1px 8px rgba(15,23,42,.06);
   --kcal: #f59e0b;
   --prot: #ef4444;
@@ -67,19 +67,19 @@ input:focus, textarea:focus, button:focus { outline: none; }
 body.dark {
   --bg: #0f172a;
   --bg-2: #0b1322;
-  --card: #1e293b;
-  --card-2: #243349;
-  --border: #334155;
-  --border-2: #475569;
+  --card: rgba(30, 41, 59, 0.65);
+  --card-2: rgba(36, 51, 73, 0.5);
+  --border: rgba(51, 65, 85, 0.6);
+  --border-2: rgba(71, 85, 105, 0.8);
   --text: #e2e8f0;
   --muted: #94a3b8;
   --dim: #64748b;
-  --bar-bg: #0b1322;
-  --topbar-bg: rgba(15,23,42,.92);
-  --bottomnav-bg: rgba(15,23,42,.95);
-  --modal-backdrop: rgba(2,6,15,.55);
-  --shadow-card: 0 8px 24px rgba(0,0,0,.35);
-  --shadow-lg: 0 24px 60px rgba(0,0,0,.45);
+  --bar-bg: rgba(11, 19, 34, 0.8);
+  --topbar-bg: rgba(15, 23, 42, 0.85);
+  --bottomnav-bg: rgba(15, 23, 42, 0.9);
+  --modal-backdrop: rgba(2,6,15,.65);
+  --shadow-card: 0 8px 32px rgba(0,0,0,.45);
+  --shadow-lg: 0 24px 64px rgba(0,0,0,.55);
   --kcal: #fbbf24;
   --prot: #f87171;
   --carb: #fb923c;
@@ -320,6 +320,7 @@ body.dark .profile-tabs button.active[data-prof="lua"]  { color: #ccfbf1; }
 @keyframes dayfade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 .day-card-big {
   background: var(--card);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border);
   border-radius: var(--r-xl);
   overflow: hidden;
@@ -433,6 +434,7 @@ body.dark .train-note-tip { color: #fed7aa; background: rgba(249,115,22,.12); }
 .fixed-panel {
   margin-top: 14px;
   background: var(--card); border: 1px solid var(--border);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
   border-radius: var(--r-lg); overflow: hidden;
 }
 .fixed-panel summary {
@@ -835,6 +837,7 @@ body.dark .banner-train { color: #fed7aa; background: linear-gradient(135deg, rg
       <button data-prof="fran"><span class="dot"></span>Fran</button>
       <button data-prof="lua"><span class="dot"></span>Lúa</button>
     </div>
+    <button id="config-btn" class="btn-theme" aria-label="Configuración" style="font-size:14px">⚙️</button>
     <button id="theme-btn" class="btn-theme" aria-label="Cambiar tema">☀️</button>
     <button id="logout-btn" class="btn-logout">Salir</button>
   </header>
@@ -904,7 +907,8 @@ const AppState = {
   activeProfile: "fran",
   plans: { fran: emptyPlan(), lua: emptyPlan() },
   entrenosDias: { fran: emptyEntrenos(), lua: emptyEntrenos() },
-  shopChecked: {} // ingredient name -> true
+  shopChecked: {}, // ingredient name -> true
+  lastSync: 0
 };
 function emptyPlan() {
   return {
@@ -1716,8 +1720,11 @@ async function handleDocx(file) {
     const result = await window.mammoth.extractRawText({ arrayBuffer: buf });
     const text = result.value;
     const parsed = parseDocxText(text);
-    pendingParse = parsed;
-    renderParsePreview(parsed, file.name);
+    const prof = importTargetProfile || AppState.activeProfile;
+    applyParsed(parsed, prof);
+    confetti();
+    toast(`🎉 Plan de ${GOALS[prof].name} cargado`);
+    syncToGithub(); // Sincronización automática
   } catch (e) {
     console.error(e);
     area.innerHTML = `<div class="empty-state"><span class="emo">⚠️</span><h3>Error procesando archivo</h3><p>${escapeHtml(e.message || "Comprueba que sea un .docx válido")}</p></div>`;
@@ -2083,6 +2090,143 @@ function escapeHtml(s) {
 }
 
 /* ============================================================= */
+/* GITHUB SYNC BACKEND                                            */
+/* ============================================================= */
+const GH_CONFIG_KEY = "nutri_gh_config";
+let ghConfig = JSON.parse(localStorage.getItem(GH_CONFIG_KEY) || '{"user":"","repo":"","token":""}');
+
+function saveGhConfig(cfg) {
+  ghConfig = cfg;
+  localStorage.setItem(GH_CONFIG_KEY, JSON.stringify(cfg));
+}
+
+async function fetchFromGithub() {
+  if (!ghConfig.user || !ghConfig.repo) {
+    // Si no hay config, intentamos leer desde GitHub Pages si estamos ahí
+    try {
+      const res = await fetch('./nutri_data.json?t=' + Date.now());
+      if (res.ok) {
+        const data = await res.json();
+        if (data.plans && data.updatedAt && (!AppState.lastSync || data.updatedAt > AppState.lastSync)) {
+          AppState.plans = mergePlans(data.plans);
+          AppState.lastSync = data.updatedAt;
+          saveAll(); render();
+        }
+      }
+    } catch(e) {}
+    return;
+  }
+  try {
+    const res = await fetch(`https://api.github.com/repos/${ghConfig.user}/${ghConfig.repo}/contents/nutri_data.json`, {
+      headers: { 
+        "Accept": "application/vnd.github.v3+json",
+        ...(ghConfig.token ? { "Authorization": "token " + ghConfig.token } : {})
+      }
+    });
+    if (res.ok) {
+      const json = await res.json();
+      const content = decodeURIComponent(escape(atob(json.content)));
+      const data = JSON.parse(content);
+      ghConfig.lastSha = json.sha; 
+      saveGhConfig(ghConfig);
+      if (data.plans && data.updatedAt && (!AppState.lastSync || data.updatedAt > AppState.lastSync)) {
+        AppState.plans = mergePlans(data.plans);
+        AppState.lastSync = data.updatedAt;
+        saveAll(); render();
+        toast("☁️ Sincronizado de la nube");
+      }
+    }
+  } catch(e) { console.warn("GH Fetch failed", e); }
+}
+
+async function syncToGithub() {
+  if (!ghConfig.user || !ghConfig.repo || !ghConfig.token) {
+    // Si no tiene config, descargar el JSON para que lo puedan subir manualmente si quieren
+    const dataStr = JSON.stringify({ plans: AppState.plans, updatedAt: Date.now() }, null, 2);
+    const blob = new Blob([dataStr], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "nutri_data.json";
+    a.click();
+    toast("✅ Plan guardado localmente (configura GitHub para sync en la nube)");
+    return;
+  }
+  
+  toast("☁️ Subiendo cambios a GitHub...", false);
+  try {
+    AppState.lastSync = Date.now();
+    const dataStr = JSON.stringify({ plans: AppState.plans, updatedAt: AppState.lastSync });
+    const content = btoa(unescape(encodeURIComponent(dataStr)));
+    
+    let sha = ghConfig.lastSha;
+    if (!sha) {
+      const resGet = await fetch(`https://api.github.com/repos/${ghConfig.user}/${ghConfig.repo}/contents/nutri_data.json`, {
+        headers: { "Authorization": "token " + ghConfig.token }
+      });
+      if (resGet.ok) { const j = await resGet.json(); sha = j.sha; }
+    }
+    
+    const res = await fetch(`https://api.github.com/repos/${ghConfig.user}/${ghConfig.repo}/contents/nutri_data.json`, {
+      method: "PUT",
+      headers: { "Authorization": "token " + ghConfig.token, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: "Auto-sync NutriApp data",
+        content: content,
+        sha: sha || undefined
+      })
+    });
+    if (res.ok) {
+      const json = await res.json();
+      ghConfig.lastSha = json.content.sha;
+      saveGhConfig(ghConfig);
+      saveAll();
+      toast("✅ Sincronizado (Tardará ~1 min en aparecer en los móviles)");
+    } else {
+      toast("❌ Error de permisos en GitHub", true);
+    }
+  } catch(e) {
+    toast("❌ Fallo en la conexión a GitHub", true);
+  }
+}
+
+function openConfigModal() {
+  openModal(`
+    <h3>⚙️ Configuración en la Nube</h3>
+    <p class="sub">Para que el plan se suba automáticamente a tu móvil o al de Lua, debes configurar el acceso a tu repositorio de GitHub Pages.</p>
+    <div class="field-block">
+      <label>Usuario de GitHub</label>
+      <input id="cfg-user" value="${escapeHtml(ghConfig.user)}" placeholder="Ej. franciscoparedes" />
+    </div>
+    <div class="field-block">
+      <label>Nombre del Repositorio</label>
+      <input id="cfg-repo" value="${escapeHtml(ghConfig.repo)}" placeholder="Ej. NUTRIAPP" />
+    </div>
+    <div class="field-block">
+      <label>Personal Access Token</label>
+      <input id="cfg-token" type="password" value="${escapeHtml(ghConfig.token)}" placeholder="ghp_..." />
+      <small style="color:var(--muted);display:block;margin-top:6px;font-size:11px">Requerido solo para SUBIR datos. Se guarda localmente. En los móviles, déjalo en blanco para solo leer.</small>
+    </div>
+    <div class="actions">
+      <button class="btn-cancel" data-x="cancel">Cerrar</button>
+      <button class="btn-confirm" data-x="save-cfg">💾 Guardar Configuración</button>
+    </div>
+  `);
+  document.getElementById("modal-body").addEventListener("click", e => {
+    if (e.target.dataset.x === "save-cfg") {
+      saveGhConfig({
+        user: document.getElementById("cfg-user").value.trim(),
+        repo: document.getElementById("cfg-repo").value.trim(),
+        token: document.getElementById("cfg-token").value.trim(),
+        lastSha: ghConfig.lastSha
+      });
+      closeModal();
+      toast("✅ Configuración guardada");
+      fetchFromGithub();
+    }
+  });
+}
+
+/* ============================================================= */
 /* INIT                                                            */
 /* ============================================================= */
 function init() {
@@ -2095,6 +2239,7 @@ function init() {
   document.getElementById("login-user").addEventListener("keydown", e => { if (e.key === "Enter") document.getElementById("login-pass").focus(); });
 
   // App bindings
+  document.getElementById("config-btn").onclick = openConfigModal;
   document.getElementById("theme-btn").onclick = toggleTheme;
   document.getElementById("logout-btn").onclick = doLogout;
   document.querySelectorAll(".profile-tabs button").forEach(b => b.onclick = () => {
@@ -2102,6 +2247,8 @@ function init() {
   });
   document.querySelectorAll(".bottomnav button").forEach(b => b.onclick = () => setSection(b.dataset.sec));
   document.getElementById("fab").onclick = () => setSection("shop");
+
+  fetchFromGithub();
 
   if (AppState.currentUser && CREDS[AppState.currentUser]) {
     showApp();
