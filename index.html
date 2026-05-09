@@ -1213,8 +1213,6 @@ function renderNutri() {
   if (steps >= 12000) stepColor = "#fbbf24"; // Amarillo brillante/estrella
   
   const waterPct = Math.min(100, (water / 8) * 100);
-  const isToday = exactDate === currentDateKey();
-  const dateFmt = isToday ? "Hoy, " + dd + " de " + ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"][mm-1] : dd + " de " + ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"][mm-1];
 
   root.innerHTML = `
     <section class="profile-summary">
