@@ -1312,49 +1312,7 @@ function renderNutri() {
         </div>
       </div>
 
-      <div class="trackers-row">
-        <!-- WATER -->
-        <div class="tracker-card">
-          <div class="tracker-head">
-            <h3>Agua ${water >= 8 ? "✅" : ""}</h3>
-            <span>${(water * 250)/1000}L / 2L</span>
-          </div>
-          <div class="water-visual" style="display:flex; justify-content:center; align-items:flex-end; gap:10px; min-height:44px; flex-wrap:wrap; margin:16px 0;">
-            ${Array(Math.floor(water / 4)).fill(0).map(() => `
-              <div style="filter:drop-shadow(0 2px 4px rgba(59,130,246,0.3));">
-                <svg width="22" height="40" viewBox="0 0 24 40" fill="rgba(59,130,246,0.7)" stroke="#2563eb" stroke-width="1.5">
-                  <rect x="9" y="2" width="6" height="5" rx="1.5" fill="#cbd5e1" stroke="#94a3b8"/>
-                  <path d="M10 7 h4 v4 c0 2 3 4 4 6 v19 a4 4 0 0 1 -4 4 H10 a4 4 0 0 1 -4 -4 V17 c1 -2 4 -4 4 -6 V7 Z"/>
-                </svg>
-              </div>
-            `).join("")}
-            ${Array(water % 4).fill(0).map(() => `<div class="water-glass filled" style="width:24px;height:32px;position:relative"></div>`).join("")}
-            ${water === 0 ? '<span style="color:var(--muted);font-size:13px;padding:8px 0">Aún no has bebido agua</span>' : ''}
-          </div>
-          <div style="display:flex;gap:8px;margin-top:12px">
-            <button class="steps-btn" style="flex:1" data-act="water-sub" data-day="${day.dia}">- 1 Vaso</button>
-            <button class="steps-btn" style="flex:1" data-act="water-add" data-day="${day.dia}">+ 1 Vaso</button>
-          </div>
-        </div>
-        <!-- PASOS -->
-        <div class="tracker-widget steps">
-          <div class="tw-head">
-            <div class="tw-icon">👟</div> Pasos
-            ${steps >= 12000 ? '<span style="margin-left:auto" title="¡Increíble!">🌟</span>' : steps >= 10000 ? '<span style="margin-left:auto">🔥</span>' : ''}
-          </div>
-          <div class="steps-ctrl">
-            <input type="number" class="steps-input" value="${steps}" id="steps-in-${day.dia}" />
-          </div>
-          <div style="display:flex;gap:4px;margin-top:2px">
-            <button class="steps-btn" style="flex:1;font-size:11px;padding:6px 0" data-act="steps-add" data-val="10" data-day="${day.dia}">+10</button>
-            <button class="steps-btn" style="flex:1;font-size:11px;padding:6px 0" data-act="steps-add" data-val="50" data-day="${day.dia}">+50</button>
-            <button class="steps-btn" style="flex:1;font-size:11px;padding:6px 0" data-act="steps-add" data-val="100" data-day="${day.dia}">+100</button>
-            <button class="steps-btn" style="flex:1;font-size:11px;padding:6px 0" data-act="steps-add" data-val="500" data-day="${day.dia}">+500</button>
-            <button class="steps-btn" style="flex:1;font-size:11px;padding:6px 0" data-act="steps-add" data-val="1000" data-day="${day.dia}">+1k</button>
-          </div>
-          <div class="steps-bar"><div class="fill" style="width:${stepPct}%;background:${stepColor}"></div></div>
-        </div>
-      </div>
+      ${getTrackersHtml(exactD, prof, day.dia)}
 
       ${renderMealBig(day, "comida", "🍽️ Comida")}
         ${renderMealBig(day, "cena", "🌙 Cena")}
@@ -1363,8 +1321,8 @@ function renderNutri() {
       ${meriendaSpecial ? `<div style="margin-top:10px"><span class="snack-badge">🍎 Merienda especial: ${escapeHtml(day.meriendaEspecial)}</span></div>` : ""}
     </div>
 
-    <details class="fixed-panel" open>
-      <summary>📌 Desayuno y extras fijos · ${goals.name}</summary>
+    <details class="fixed-panel" style="background: rgba(220, 252, 231, 0.3); border-color: rgba(74, 222, 128, 0.2);">
+      <summary style="background: rgba(187, 247, 208, 0.4);">📌 Desayuno y extras fijos · ${goals.name}</summary>
       <div class="body">
         <div class="fixed-block">
           <h4>☕️ Desayuno habitual</h4>
@@ -1413,16 +1371,90 @@ function renderNutri() {
   if (dv) {
     dv.addEventListener("click", onCalClick);
   }
+}
 
-  const stInp = document.getElementById("steps-in-" + day.dia);
-  stInp?.addEventListener("change", (e) => {
-    let v = parseInt(e.target.value, 10);
-    if (isNaN(v) || v < 0) v = 0;
-    const exactDate = getDateForDay(sel);
-    if (!AppState.history[prof][exactDate]) AppState.history[prof][exactDate] = { steps: 0, water: 0, trained: false, comments: {} };
-    AppState.history[prof][exactDate].steps = v;
-    saveAll(); syncToGithub(); render();
-  });
+function updateSteps(input, exactDate) {
+  let v = parseInt(input.value, 10);
+  if (isNaN(v) || v < 0) v = 0;
+  const prof = AppState.activeProfile;
+  if (!AppState.history[prof][exactDate]) AppState.history[prof][exactDate] = { steps: 0, water: 0, trained: false, comments: {} };
+  AppState.history[prof][exactDate].steps = v;
+  saveAll(); syncToGithub(); render();
+  
+  const wrap = document.getElementById("modal-trackers-wrap");
+  if (wrap && wrap.dataset.exactdate === exactDate) {
+    wrap.innerHTML = getTrackersHtml(exactDate, prof, "Progreso");
+  }
+}
+
+function getTrackersHtml(exactDate, prof, dayName) {
+  if (!AppState.history[prof][exactDate]) {
+    let defaultTr = false;
+    const dObj = new Date(exactDate);
+    const dow = dObj.getDay(); // 0=Dom, 1=Lun ... 5=Vie
+    if (prof === "fran") {
+      if (dow >= 1 && dow <= 5) defaultTr = true;
+    } else if (prof === "lua") {
+      // Lua: Lunes(1), Martes(2), Jueves(4)
+      if (dow === 1 || dow === 2 || dow === 4) defaultTr = true;
+    }
+    AppState.history[prof][exactDate] = { steps: 0, water: 0, trained: defaultTr, comments: {} };
+  }
+  const hData = AppState.history[prof][exactDate];
+  const water = hData.water || 0;
+  const steps = hData.steps || 0;
+  
+  let stepColor = "#f59e0b";
+  if (steps >= 6000) stepColor = "#86efac";
+  if (steps >= 10000) stepColor = "#10b981";
+  if (steps >= 12000) stepColor = "#fbbf24";
+  const stepPct = Math.min(100, (steps / 12000) * 100);
+
+  return `
+    <div class="trackers-row">
+      <!-- WATER -->
+      <div class="tracker-card">
+        <div class="tracker-head">
+          <h3>Agua ${water >= 8 ? "✅" : ""}</h3>
+          <span>${(water * 250)/1000}L / 2L</span>
+        </div>
+        <div class="water-visual" style="display:flex; justify-content:center; align-items:flex-end; gap:10px; min-height:44px; flex-wrap:wrap; margin:16px 0;">
+          ${Array(Math.floor(water / 4)).fill(0).map(() => `
+            <div style="filter:drop-shadow(0 2px 4px rgba(59,130,246,0.3));">
+              <svg width="22" height="40" viewBox="0 0 24 40" fill="rgba(59,130,246,0.7)" stroke="#2563eb" stroke-width="1.5">
+                <rect x="9" y="2" width="6" height="5" rx="1.5" fill="#cbd5e1" stroke="#94a3b8"/>
+                <path d="M10 7 h4 v4 c0 2 3 4 4 6 v19 a4 4 0 0 1 -4 4 H10 a4 4 0 0 1 -4 -4 V17 c1 -2 4 -4 4 -6 V7 Z"/>
+              </svg>
+            </div>
+          `).join("")}
+          ${Array(water % 4).fill(0).map(() => `<div class="water-glass filled" style="width:24px;height:32px;position:relative"></div>`).join("")}
+          ${water === 0 ? '<span style="color:var(--muted);font-size:13px;padding:8px 0">Aún no has bebido agua</span>' : ''}
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button class="steps-btn" style="flex:1" data-act="water-sub" data-day="${dayName}">- 1 Vaso</button>
+          <button class="steps-btn" style="flex:1" data-act="water-add" data-day="${dayName}">+ 1 Vaso</button>
+        </div>
+      </div>
+      <!-- PASOS -->
+      <div class="tracker-widget steps">
+        <div class="tw-head">
+          <div class="tw-icon">👟</div> Pasos
+          ${steps >= 12000 ? '<span style="margin-left:auto" title="¡Increíble!">🌟</span>' : steps >= 10000 ? '<span style="margin-left:auto">🔥</span>' : ''}
+        </div>
+        <div class="steps-ctrl">
+          <input type="number" class="steps-input" value="${steps}" onchange="updateSteps(this, '${exactDate}')" />
+        </div>
+        <div style="display:flex;gap:4px;margin-top:2px">
+          <button class="steps-btn" style="flex:1;font-size:11px;padding:6px 0" data-act="steps-add" data-val="10" data-day="${dayName}">+10</button>
+          <button class="steps-btn" style="flex:1;font-size:11px;padding:6px 0" data-act="steps-add" data-val="50" data-day="${dayName}">+50</button>
+          <button class="steps-btn" style="flex:1;font-size:11px;padding:6px 0" data-act="steps-add" data-val="100" data-day="${dayName}">+100</button>
+          <button class="steps-btn" style="flex:1;font-size:11px;padding:6px 0" data-act="steps-add" data-val="500" data-day="${dayName}">+500</button>
+          <button class="steps-btn" style="flex:1;font-size:11px;padding:6px 0" data-act="steps-add" data-val="1000" data-day="${dayName}">+1k</button>
+        </div>
+        <div class="steps-bar"><div class="fill" style="width:${stepPct}%;background:${stepColor}"></div></div>
+      </div>
+    </div>
+  `;
 }
 
 function renderMealBig(day, slot, title) {
@@ -1435,19 +1467,28 @@ function renderMealBig(day, slot, title) {
   const hData = AppState.history?.[prof]?.[exactDate] || {};
   const comments = hData.comments?.[slot] || "";
 
+  let bgStyle = "";
+  if (slot === "comida") {
+    // Color suave para la comida (naranja pálido/melocotón)
+    bgStyle = "background: rgba(255, 237, 213, 0.4); border-color: rgba(251, 146, 60, 0.2);";
+  } else if (slot === "cena") {
+    // Color suave para la cena (índigo pálido/lavanda)
+    bgStyle = "background: rgba(224, 231, 255, 0.4); border-color: rgba(129, 140, 248, 0.2);";
+  }
+
   return `
-    <div class="meal-card" data-meal="${slot}" data-day="${day.dia}">
+    <div class="meal-card" data-meal="${slot}" data-day="${day.dia}" style="${bgStyle}">
       <div class="meal-head">${title}</div>
       <div class="meal-name${empty ? " empty" : ""}">${empty ? "Sin asignar" : escapeHtml(m.nombre)}</div>
       <div class="meal-macros">
-        <span class="chip kcal">🔥 ${Math.round(m.calorias||0)} kcal</span>
-        <span class="chip prot">🥩 ${Math.round(m.proteinas||0)}g</span>
-        <span class="chip carb">🌾 ${Math.round(m.carbohidratos||0)}g</span>
-        <span class="chip fat">💧 ${Math.round(m.grasas||0)}g</span>
+        <span class="chip kcal">Kcal: ${Math.round(m.calorias||0)}</span>
+        <span class="chip prot">Prot: ${Math.round(m.proteinas||0)}g</span>
+        <span class="chip carb">Carb: ${Math.round(m.carbohidratos||0)}g</span>
+        <span class="chip fat">Grasas: ${Math.round(m.grasas||0)}g</span>
       </div>
-      ${comments ? `<div style="background:var(--bg-2);padding:8px 12px;border-radius:8px;font-size:13px;margin:8px 0;border:1px solid var(--border)">📝 <b>Diario:</b> ${escapeHtml(comments)}</div>` : ''}
+      ${comments ? `<div style="background:var(--bg);padding:8px 12px;border-radius:8px;font-size:13px;margin:8px 0;border:1px solid rgba(0,0,0,0.05)">📝 <b>Diario:</b> ${escapeHtml(comments)}</div>` : ''}
       <div class="meal-actions">
-        <button data-act="log-comment" data-slot="${slot}" style="background:var(--bg-2)">📝 Diario real</button>
+        <button data-act="log-comment" data-slot="${slot}" style="background:var(--bg)">📝 Diario real</button>
         <button data-act="swap"   data-slot="${slot}">🔄 Intercambiar</button>
         <button data-act="subst"  data-slot="${slot}">🔁 Sustituir</button>
         <button data-act="edit"   data-slot="${slot}">✏️ Editar</button>
@@ -1500,24 +1541,40 @@ function onCalClick(e) {
   const prof = AppState.activeProfile;
   
   const targetDay = t.dataset.day || t.closest(".meal-card")?.dataset.day || AppState.selectedDay || todayDay();
-  const exactDate = getDateForDay(targetDay);
   
-  if (!AppState.history[prof][exactDate]) AppState.history[prof][exactDate] = { steps: 0, water: 0, trained: false, comments: {} };
+  const exactWrap = t.closest("[data-exactdate]");
+  const exactDate = exactWrap ? exactWrap.dataset.exactdate : getDateForDay(targetDay);
+  
+  if (!AppState.history[prof][exactDate]) {
+    let defaultTr = false;
+    if (prof === "fran") {
+      const dObj = new Date(exactDate);
+      const dow = dObj.getDay();
+      if (dow >= 1 && dow <= 5) defaultTr = true;
+    }
+    AppState.history[prof][exactDate] = { steps: 0, water: 0, trained: defaultTr, comments: {} };
+  }
   const hData = AppState.history[prof][exactDate];
+
+  let shouldRerenderModal = false;
 
   if (act === "toggle-train") {
     hData.trained = !hData.trained;
     saveAll(); syncToGithub(); render();
+    shouldRerenderModal = true;
   } else if (act === "water-add") {
     hData.water = (hData.water || 0) + 1;
     saveAll(); syncToGithub(); render();
+    shouldRerenderModal = true;
   } else if (act === "water-sub") {
     hData.water = Math.max(0, (hData.water || 0) - 1);
     saveAll(); syncToGithub(); render();
+    shouldRerenderModal = true;
   } else if (act === "steps-add") {
     const val = parseInt(t.dataset.val, 10);
     hData.steps = (hData.steps || 0) + val;
     saveAll(); syncToGithub(); render();
+    shouldRerenderModal = true;
   } else if (act === "day-detail") {
     openDayDrawer(AppState.plans[prof].semana.find(d => d.dia === targetDay)?.dia || DAYS[0]);
   } else if (act === "log-comment") {
@@ -1528,6 +1585,10 @@ function onCalClick(e) {
     openSubstModal(AppState.plans[prof].semana.find(d => d.dia === targetDay)?.dia || DAYS[0], slot);
   } else if (act === "edit") {
     openEditModal(AppState.plans[prof].semana.find(d => d.dia === targetDay)?.dia || DAYS[0], slot);
+  }
+
+  if (shouldRerenderModal && exactWrap && exactWrap.id === "modal-trackers-wrap") {
+    exactWrap.innerHTML = getTrackersHtml(exactDate, prof, targetDay);
   }
 }
 
@@ -2523,7 +2584,7 @@ function renderStats() {
   }
 
   const avgSteps = mDays > 0 ? Math.round(mSteps / mDays) : 0;
-  const avgWater = mDays > 0 ? (mWater / mDays).toFixed(1) : 0;
+  const avgWaterL = mDays > 0 ? ((mWater / mDays) * 0.25).toFixed(2) : "0.00";
 
   root.innerHTML = `
     <div class="stats-grid">
@@ -2531,7 +2592,7 @@ function renderStats() {
         <div class="stats-lbl" style="color:rgba(255,255,255,0.8)">Promedio Diario (Este Mes)</div>
         <div style="display:flex;justify-content:space-between;margin-top:8px">
           <div><div class="stats-val" style="color:#fff">👟 ${avgSteps}</div><div style="font-size:12px">pasos/día</div></div>
-          <div><div class="stats-val" style="color:#fff">💧 ${avgWater}</div><div style="font-size:12px">vasos/día</div></div>
+          <div><div class="stats-val" style="color:#fff">💧 ${avgWaterL} L</div><div style="font-size:12px">litros/día</div></div>
         </div>
       </div>
 
@@ -2539,7 +2600,7 @@ function renderStats() {
         <h3 style="margin:0 0 8px;font-size:15px">📅 Esta Semana</h3>
         <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;border-top:1px solid var(--border)">
           <div style="text-align:center"><div class="stats-lbl">Pasos</div><div class="stats-val">${wSteps >= 1000 ? (wSteps/1000).toFixed(1)+'k' : wSteps}</div></div>
-          <div style="text-align:center"><div class="stats-lbl">Vasos</div><div class="stats-val">${wWater}</div></div>
+          <div style="text-align:center"><div class="stats-lbl">Agua</div><div class="stats-val">${(wWater * 0.25).toFixed(2)} L</div></div>
           <div style="text-align:center"><div class="stats-lbl">Entrenos</div><div class="stats-val">${wTrain}</div></div>
         </div>
       </div>
@@ -2548,7 +2609,7 @@ function renderStats() {
         <h3 style="margin:0 0 8px;font-size:15px">🗓️ Este Mes</h3>
         <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;border-top:1px solid var(--border)">
           <div style="text-align:center"><div class="stats-lbl">Pasos</div><div class="stats-val">${mSteps >= 1000 ? (mSteps/1000).toFixed(1)+'k' : mSteps}</div></div>
-          <div style="text-align:center"><div class="stats-lbl">Vasos</div><div class="stats-val">${mWater}</div></div>
+          <div style="text-align:center"><div class="stats-lbl">Agua</div><div class="stats-val">${(mWater * 0.25).toFixed(2)} L</div></div>
           <div style="text-align:center"><div class="stats-lbl">Entrenos</div><div class="stats-val">${mTrain}</div></div>
         </div>
       </div>
@@ -2726,51 +2787,40 @@ function openConfigModal() {
 /* ============================================================= */
 function openEditPastModal(exactDate) {
   const prof = AppState.activeProfile;
-  const hData = AppState.history[prof][exactDate] || { steps: 0, water: 0, trained: false };
+  // Initialize with default training if doesn't exist yet, to correctly render the first time
+  if (!AppState.history[prof][exactDate]) {
+    let defaultTr = false;
+    if (prof === "fran") {
+      const dObj = new Date(exactDate);
+      const dow = dObj.getDay();
+      if (dow >= 1 && dow <= 5) defaultTr = true;
+    }
+    AppState.history[prof][exactDate] = { steps: 0, water: 0, trained: defaultTr, comments: {} };
+  }
   
   openModal(`
-    <h3>✏️ Editar ${exactDate}</h3>
-    <p class="sub">Corrige tus pasos, agua o entrenamiento de este día pasado.</p>
+    <h3>✏️ Día ${exactDate}</h3>
+    <p class="sub">Tus progresos exactos de este día. Se guardan automáticamente.</p>
     
-    <div style="display:grid;gap:12px;margin-bottom:16px">
-      <div>
-        <label style="font-size:13px;font-weight:700">Pasos</label>
-        <input type="number" id="edit-past-steps" value="${hData.steps || 0}" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--border)">
-      </div>
-      <div>
-        <label style="font-size:13px;font-weight:700">Vasos de Agua</label>
-        <div style="display:flex;gap:8px">
-          <input type="number" id="edit-past-water" value="${hData.water || 0}" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--border)">
-        </div>
-      </div>
-      <div>
-        <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700">
-          <input type="checkbox" id="edit-past-trained" ${hData.trained ? "checked" : ""}> 🏋️ Día de Entrenamiento
-        </label>
-      </div>
+    <div id="modal-trackers-wrap" data-exactdate="${exactDate}" style="margin-top:16px;">
+      ${getTrackersHtml(exactDate, prof, "Progreso")}
     </div>
     
-    <div class="actions">
-      <button class="btn-cancel" data-x="cancel">Cancelar</button>
-      <button class="btn-confirm" data-x="save-past">💾 Guardar</button>
+    <div class="actions" style="margin-top:24px;">
+      <button class="btn-confirm" data-x="close-past">Aceptar y Cerrar</button>
     </div>
   `);
   
-  document.getElementById("modal-body").addEventListener("click", e => {
-    if (e.target.dataset.x === "cancel") closeModal();
-    if (e.target.dataset.x === "save-past") {
-      const newSteps = parseInt(document.getElementById("edit-past-steps").value, 10) || 0;
-      const newWater = parseInt(document.getElementById("edit-past-water").value, 10) || 0;
-      const newTr = document.getElementById("edit-past-trained").checked;
-      
-      if (!AppState.history[prof][exactDate]) AppState.history[prof][exactDate] = {};
-      AppState.history[prof][exactDate].steps = newSteps;
-      AppState.history[prof][exactDate].water = newWater;
-      AppState.history[prof][exactDate].trained = newTr;
-      
-      saveAll(); syncToGithub(); closeModal(); render();
+  // Asignamos el evento con onclick para evitar bugs de listeners duplicados
+  const mb = document.getElementById("modal-body");
+  mb.onclick = (e) => {
+    if (e.target.dataset.x === "close-past" || e.target.dataset.x === "cancel") {
+      closeModal();
+    } else {
+      // Dejamos que onCalClick maneje los clics en los trackers
+      onCalClick(e);
     }
-  });
+  };
 }
 
 function init() {
