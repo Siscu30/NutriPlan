@@ -1189,13 +1189,11 @@ function renderNutri() {
   const totals = weekTotals(plan);
   const initial = goals.name[0];
   
-  const exactDate = AppState.selectedDate || currentDateKey();
-  AppState.selectedDate = exactDate;
-  const [yy, mm, dd] = exactDate.split("-").map(Number);
-  const dateObj = new Date(yy, mm - 1, dd);
-  const dayIdx = (dateObj.getDay() + 6) % 7;
-  const dayName = DAYS[dayIdx];
-  const day = plan.semana.find(d => d.dia === dayName) || plan.semana[0];
+  const sel = AppState.selectedDay || todayDay();
+  AppState.selectedDay = sel;
+  const day = plan.semana.find(d => d.dia === sel) || plan.semana[0];
+  
+  const exactDate = getDateForDay(day.dia);
   
   const dt = dayTotals(day);
   const meriendaSpecial = day.meriendaEspecial && plan.meriendasFijas && day.meriendaEspecial.trim() !== plan.meriendasFijas.trim();
@@ -1245,18 +1243,33 @@ function renderNutri() {
       </div>
     </section>
 
-    <div class="date-nav">
-      <button class="date-btn" data-act="prev-day">◀</button>
-      <div class="date-display">
-        <input type="date" id="global-date" value="${exactDate}" max="${currentDateKey()}" />
-        <span class="date-text">${DAY_SHORT[dayName]}, ${dateFmt}</span>
+      <div class="macro-chips">
+        <span class="chip kcal">🔥 ${Math.round(totals.kcal)} kcal sem</span>
+        <span class="chip prot">P ${Math.round(totals.prot)}g</span>
+        <span class="chip carb">C ${Math.round(totals.carb)}g</span>
+        <span class="chip fat">G ${Math.round(totals.fat)}g</span>
       </div>
-      <button class="date-btn" data-act="next-day" ${isToday ? 'disabled style="opacity:0.3"' : ''}>▶</button>
+    </section>
+
+    <div class="day-pills" id="pills">
+      ${plan.semana.map(d => {
+        const ab = d.dia[0] === "M" && d.dia[1] === "i" ? "X" : (d.dia === "Sábado" ? "S" : d.dia[0]);
+        const exactD = getDateForDay(d.dia);
+        const isTr = AppState.history?.[prof]?.[exactD]?.trained || false;
+        return `<button class="day-pill${d.dia === sel ? ' active' : ''}" data-pill="${d.dia}">
+          <span class="ab">${ab}</span>
+          <span class="full">${DAY_SHORT[d.dia]}</span>
+          ${isTr ? '<span class="train-mark">🏋️</span>' : ''}
+        </button>`;
+      }).join("")}
     </div>
 
     <div class="day-view" id="day-view">
       <div class="day-card-big${tr ? ' training' : ''}">
         <div class="day-header-big">
+          <div class="day-header-row">
+            <div class="day-name-big" data-act="day-detail" data-day="${day.dia}">${day.dia}</div>
+          </div>
           <button class="btn-train${tr ? ' on' : ''}" data-act="toggle-train" data-day="${day.dia}">
             ${tr ? "🏋️ Entrenamiento activo ✓" : "🏋️ Día de entrenamiento"}
           </button>
@@ -1269,16 +1282,20 @@ function renderNutri() {
       </div>
 
       <div class="trackers-row">
-        <!-- AGUA -->
-        <div class="tracker-widget water">
-          <div class="tw-head">
-            <div class="tw-icon">💧</div> Agua 
-            <span style="margin-left:auto;font-size:11px;color:var(--muted)">${water*250}ml</span>
-            ${water >= 8 ? '<span title="Meta de 2L conseguida" style="margin-left:4px">✅</span>' : ''}
+        <!-- WATER -->
+        <div class="tracker-card">
+          <div class="tracker-head">
+            <h3>Agua ${water >= 8 ? "✅" : ""}</h3>
+            <span>${(water * 250)/1000}L / 2L</span>
           </div>
-          <div class="water-glasses">
-            ${Array.from({length: Math.max(8, water)}).map((_, i) => `<div class="water-glass${i < water ? ' filled' : ''}" data-act="water" data-day="${day.dia}" data-val="${i+1}"></div>`).join("")}
-            <button class="water-glass" style="display:grid;place-items:center;background:var(--bg-2);border-color:var(--border)" data-act="water-add" data-day="${day.dia}">+</button>
+          <div class="water-visual">
+            ${Array(Math.floor(water / 4)).fill(0).map(() => `<div style="font-size:32px; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.2));">🍾</div>`).join("")}
+            ${Array(water % 4).fill(0).map(() => `<div class="water-glass filled" style="width:28px;height:36px;position:relative"></div>`).join("")}
+            ${water === 0 ? '<span style="color:var(--muted);font-size:13px;padding:8px 0">Aún no has bebido agua</span>' : ''}
+          </div>
+          <div style="display:flex;gap:8px;margin-top:12px">
+            <button class="steps-btn" style="flex:1" data-act="water-sub" data-day="${day.dia}">- 1 Vaso</button>
+            <button class="steps-btn" style="flex:1" data-act="water-add" data-day="${day.dia}">+ 1 Vaso</button>
           </div>
         </div>
         <!-- PASOS -->
@@ -1342,31 +1359,28 @@ function renderNutri() {
   mer?.addEventListener("change", () => { plan.meriendasFijas = mer.value.trim(); saveAll(); syncToGithub(); render(); });
 
   // Event listener para input de pasos
-  const dateInp = document.getElementById("global-date");
-  if (dateInp) {
-    dateInp.addEventListener("change", (e) => {
-      AppState.selectedDate = e.target.value;
+  // Event listener para pastillas de días
+  const pills = document.getElementById("pills");
+  if (pills) {
+    pills.addEventListener("click", (e) => {
+      const b = e.target.closest(".day-pill");
+      if (!b) return;
+      AppState.selectedDay = b.dataset.pill;
       render();
     });
   }
-  document.querySelectorAll(".date-btn").forEach(b => b.addEventListener("click", e => {
-    const act = e.currentTarget.dataset.act;
-    const [y, m, d] = (AppState.selectedDate || currentDateKey()).split("-").map(Number);
-    const dateObj = new Date(y, m - 1, d);
-    if (act === "prev-day") dateObj.setDate(dateObj.getDate() - 1);
-    if (act === "next-day") dateObj.setDate(dateObj.getDate() + 1);
-    const newDate = `${dateObj.getFullYear()}-${String(dateObj.getMonth()+1).padStart(2,'0')}-${String(dateObj.getDate()).padStart(2,'0')}`;
-    if (newDate <= currentDateKey()) {
-      AppState.selectedDate = newDate;
-      render();
-    }
-  }));
+
+  // Event listener centralizado para day-view
+  const dv = document.getElementById("day-view");
+  if (dv) {
+    dv.addEventListener("click", onCalClick);
+  }
 
   const stInp = document.getElementById("steps-in-" + day.dia);
   stInp?.addEventListener("change", (e) => {
     let v = parseInt(e.target.value, 10);
     if (isNaN(v) || v < 0) v = 0;
-    const exactDate = AppState.selectedDate || currentDateKey();
+    const exactDate = getDateForDay(sel);
     if (!AppState.history[prof][exactDate]) AppState.history[prof][exactDate] = { steps: 0, water: 0, trained: false, comments: {} };
     AppState.history[prof][exactDate].steps = v;
     saveAll(); syncToGithub(); render();
@@ -1377,7 +1391,8 @@ function renderMealBig(day, slot, title) {
   const m = day[slot];
   const empty = !m.nombre;
   
-  const exactDate = AppState.selectedDate || currentDateKey();
+  const sel = AppState.selectedDay || todayDay();
+  const exactDate = getDateForDay(sel);
   const prof = AppState.activeProfile;
   const hData = AppState.history?.[prof]?.[exactDate] || {};
   const comments = hData.comments?.[slot] || "";
@@ -1445,34 +1460,36 @@ function onCalClick(e) {
   const act = t.dataset.act;
   const slot = t.dataset.slot;
   const prof = AppState.activeProfile;
-  const exactDate = AppState.selectedDate || currentDateKey();
+  
+  const targetDay = t.dataset.day || t.closest(".meal-card")?.dataset.day || AppState.selectedDay || todayDay();
+  const exactDate = getDateForDay(targetDay);
+  
   if (!AppState.history[prof][exactDate]) AppState.history[prof][exactDate] = { steps: 0, water: 0, trained: false, comments: {} };
   const hData = AppState.history[prof][exactDate];
 
   if (act === "toggle-train") {
     hData.trained = !hData.trained;
     saveAll(); syncToGithub(); render();
-  } else if (act === "water") {
-    const val = parseInt(t.dataset.val, 10);
-    hData.water = (hData.water === val) ? val - 1 : val;
-    saveAll(); syncToGithub(); render();
   } else if (act === "water-add") {
     hData.water = (hData.water || 0) + 1;
+    saveAll(); syncToGithub(); render();
+  } else if (act === "water-sub") {
+    hData.water = Math.max(0, (hData.water || 0) - 1);
     saveAll(); syncToGithub(); render();
   } else if (act === "steps-add") {
     const val = parseInt(t.dataset.val, 10);
     hData.steps = (hData.steps || 0) + val;
     saveAll(); syncToGithub(); render();
   } else if (act === "day-detail") {
-    openDayDrawer(AppState.plans[prof].semana.find(d => d.dia === t.dataset.day)?.dia || DAYS[0]);
+    openDayDrawer(AppState.plans[prof].semana.find(d => d.dia === targetDay)?.dia || DAYS[0]);
   } else if (act === "log-comment") {
     openCommentModal(slot, exactDate);
   } else if (act === "swap") {
-    openSwapModal(AppState.plans[prof].semana.find(d => d.dia === t.closest(".meal-card").dataset.day)?.dia || DAYS[0], slot);
+    openSwapModal(AppState.plans[prof].semana.find(d => d.dia === targetDay)?.dia || DAYS[0], slot);
   } else if (act === "subst") {
-    openSubstModal(AppState.plans[prof].semana.find(d => d.dia === t.closest(".meal-card").dataset.day)?.dia || DAYS[0], slot);
+    openSubstModal(AppState.plans[prof].semana.find(d => d.dia === targetDay)?.dia || DAYS[0], slot);
   } else if (act === "edit") {
-    openEditModal(AppState.plans[prof].semana.find(d => d.dia === t.closest(".meal-card").dataset.day)?.dia || DAYS[0], slot);
+    openEditModal(AppState.plans[prof].semana.find(d => d.dia === targetDay)?.dia || DAYS[0], slot);
   }
 }
 
@@ -2394,9 +2411,10 @@ function renderProgress() {
         <div style="padding:14px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:8px;">
           <div style="display:flex;align-items:center;justify-content:space-between;font-weight:700;font-size:14px;">
             <span>Día ${item.day} ${tr ? '<span title="Día de entrenamiento" style="margin-left:4px;font-size:12px;">🏋️</span>' : ''}</span>
-            <span style="color:var(--muted);font-size:12px;display:flex;gap:12px">
+            <span style="color:var(--muted);font-size:12px;display:flex;gap:12px;align-items:center">
               <span>💧 ${water} vasos</span>
               <span style="color:${stepColor}">${steps} pasos ${stepBadge}</span>
+              <button onclick="openEditPastModal('${item.date}')" style="background:var(--bg-2);border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-size:11px">✏️</button>
             </span>
           </div>
           <div class="steps-bar" style="margin:0"><div class="fill" style="width:${stepPct}%;background:${stepColor}"></div></div>
@@ -2585,6 +2603,55 @@ function openConfigModal() {
 /* ============================================================= */
 /* INIT                                                            */
 /* ============================================================= */
+function openEditPastModal(exactDate) {
+  const prof = AppState.activeProfile;
+  const hData = AppState.history[prof][exactDate] || { steps: 0, water: 0, trained: false };
+  
+  openModal(`
+    <h3>✏️ Editar ${exactDate}</h3>
+    <p class="sub">Corrige tus pasos, agua o entrenamiento de este día pasado.</p>
+    
+    <div style="display:grid;gap:12px;margin-bottom:16px">
+      <div>
+        <label style="font-size:13px;font-weight:700">Pasos</label>
+        <input type="number" id="edit-past-steps" value="${hData.steps || 0}" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--border)">
+      </div>
+      <div>
+        <label style="font-size:13px;font-weight:700">Vasos de Agua</label>
+        <div style="display:flex;gap:8px">
+          <input type="number" id="edit-past-water" value="${hData.water || 0}" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--border)">
+        </div>
+      </div>
+      <div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700">
+          <input type="checkbox" id="edit-past-trained" ${hData.trained ? "checked" : ""}> 🏋️ Día de Entrenamiento
+        </label>
+      </div>
+    </div>
+    
+    <div class="actions">
+      <button class="btn-cancel" data-x="cancel">Cancelar</button>
+      <button class="btn-confirm" data-x="save-past">💾 Guardar</button>
+    </div>
+  `);
+  
+  document.getElementById("modal-body").addEventListener("click", e => {
+    if (e.target.dataset.x === "cancel") closeModal();
+    if (e.target.dataset.x === "save-past") {
+      const newSteps = parseInt(document.getElementById("edit-past-steps").value, 10) || 0;
+      const newWater = parseInt(document.getElementById("edit-past-water").value, 10) || 0;
+      const newTr = document.getElementById("edit-past-trained").checked;
+      
+      if (!AppState.history[prof][exactDate]) AppState.history[prof][exactDate] = {};
+      AppState.history[prof][exactDate].steps = newSteps;
+      AppState.history[prof][exactDate].water = newWater;
+      AppState.history[prof][exactDate].trained = newTr;
+      
+      saveAll(); syncToGithub(); closeModal(); render();
+    }
+  });
+}
+
 function init() {
   loadAll();
   applyTheme(localStorage.getItem("nutri_theme") || "light");
