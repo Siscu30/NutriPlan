@@ -826,6 +826,53 @@ body.dark .banner-train { color: #fed7aa; background: linear-gradient(135deg, rg
   background: rgba(239,68,68,.12); color: #fca5a5; border: 1px solid rgba(239,68,68,.3);
 }
 
+/* ============ NEW MOBILE UI ============ */
+.date-nav {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--r-full);
+  margin-bottom: 24px; padding: 6px;
+}
+.date-btn {
+  width: 36px; height: 36px; border-radius: 50%; background: var(--bg-2);
+  display: grid; place-items: center; font-size: 14px; color: var(--text); border: 1px solid var(--border);
+}
+.date-display {
+  flex: 1; text-align: center; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+#global-date {
+  position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%;
+}
+.date-text { font-weight: 800; font-size: 15px; }
+
+.rings-widget { display: flex; gap: 16px; margin-top: 14px; }
+.ring-wrap { position: relative; width: 44px; height: 44px; }
+.ring { width: 100%; height: 100%; transform: rotate(-90deg); }
+.ring-bg { fill: none; stroke: var(--bg-2); stroke-width: 3.8; }
+.ring-fill { fill: none; stroke-width: 3.8; stroke-linecap: round; transition: stroke-dasharray 1s ease-out; }
+.water-ring { stroke: #3b82f6; }
+.ring-icon { position: absolute; inset: 0; display: grid; place-items: center; font-size: 16px; }
+
+/* Runner Emoji */
+.steps-bar { position: relative; }
+.steps-bar .fill { position: relative; transition: width 0.5s ease-out, background 0.5s ease; }
+.steps-bar .fill::after {
+  content: "🏃"; position: absolute; right: -12px; top: 50%; transform: translateY(-50%);
+  font-size: 16px; text-shadow: 0 2px 4px rgba(0,0,0,0.2); z-index: 2;
+}
+
+/* Water Glasses Animation */
+.water-glass {
+  background: transparent !important;
+  border: 1px solid rgba(59,130,246,.3) !important;
+  border-radius: 4px 4px 8px 8px !important;
+}
+.water-glass.filled::before {
+  content: ""; position: absolute; bottom: 0; left: 0; width: 100%; height: 85%;
+  background: rgba(59,130,246,.8); border-radius: 0 0 6px 6px;
+  animation: fillWater .4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+@keyframes fillWater { from { height: 0; opacity: 0; } to { height: 85%; opacity: 1; } }
+
 /* ============ TOAST + CONFETTI ============ */
 .toast-stack { position: fixed; bottom: calc(96px + var(--safe-bot)); left: 50%; transform: translateX(-50%); z-index: 1000; display: flex; flex-direction: column; gap: 8px; }
 .toast {
@@ -970,8 +1017,9 @@ const AppState = {
   entrenosDias: { fran: emptyEntrenos(), lua: emptyEntrenos() },
   shopChecked: {}, // ingredient name -> true
   trackers: { fran: { water: {}, steps: {} }, lua: { water: {}, steps: {} } },
-  history: { fran: {}, lua: {} }, // YYYY-MM-DD -> { steps: 0, water: 0, trained: false }
-  lastSync: 0
+  history: { fran: {}, lua: {} }, // YYYY-MM-DD -> { steps: 0, water: 0, trained: false, comments: {} }
+  lastSync: 0,
+  selectedDate: null // YYYY-MM-DD
 };
 function emptyPlan() {
   return {
@@ -986,8 +1034,14 @@ function emptyPlan() {
     }))
   };
 }
-function emptyMeal() { return { nombre: "", ingredientes: [], calorias: 0, proteinas: 0, carbohidratos: 0, grasas: 0 }; }
+function emptyMeal() { return { nombre: "", ingredientes: [], calorias: 0, proteinas: 0, carbohidratos: 0, grasas: 0, comments: "" }; }
 function emptyEntrenos() { return Object.fromEntries(DAYS.map(d => [d, false])); }
+
+function currentDateKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
 function currentWeekKey() {
   // Devuelve la fecha (YYYY-MM-DD) del lunes de la semana actual
   const now = new Date();
@@ -1134,15 +1188,20 @@ function renderNutri() {
   const goals = GOALS[prof];
   const totals = weekTotals(plan);
   const initial = goals.name[0];
-  const sel = AppState.selectedDay || todayDay();
-  AppState.selectedDay = sel;
-  const day = plan.semana.find(d => d.dia === sel) || plan.semana[0];
+  
+  const exactDate = AppState.selectedDate || currentDateKey();
+  AppState.selectedDate = exactDate;
+  const [yy, mm, dd] = exactDate.split("-").map(Number);
+  const dateObj = new Date(yy, mm - 1, dd);
+  const dayIdx = (dateObj.getDay() + 6) % 7;
+  const dayName = DAYS[dayIdx];
+  const day = plan.semana.find(d => d.dia === dayName) || plan.semana[0];
+  
   const dt = dayTotals(day);
   const meriendaSpecial = day.meriendaEspecial && plan.meriendasFijas && day.meriendaEspecial.trim() !== plan.meriendasFijas.trim();
 
-  const exactDate = getDateForDay(day.dia);
   if (!AppState.history) AppState.history = { fran: {}, lua: {} };
-  if (!AppState.history[prof][exactDate]) AppState.history[prof][exactDate] = { steps: 0, water: 0, trained: false };
+  if (!AppState.history[prof][exactDate]) AppState.history[prof][exactDate] = { steps: 0, water: 0, trained: false, comments: {} };
   const hData = AppState.history[prof][exactDate];
   const water = hData.water || 0;
   const steps = hData.steps || 0;
@@ -1154,6 +1213,10 @@ function renderNutri() {
   if (steps >= 6000) stepColor = "#86efac"; // Verde claro
   if (steps >= 10000) stepColor = "#10b981"; // Verde intenso
   if (steps >= 12000) stepColor = "#fbbf24"; // Amarillo brillante/estrella
+  
+  const waterPct = Math.min(100, (water / 8) * 100);
+  const isToday = exactDate === currentDateKey();
+  const dateFmt = isToday ? "Hoy, " + dd + " de " + ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"][mm-1] : dd + " de " + ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"][mm-1];
 
   root.innerHTML = `
     <section class="profile-summary">
@@ -1162,32 +1225,38 @@ function renderNutri() {
         <h2>${goals.name}</h2>
         <p>Objetivo: ${goals.kcal} kcal · ${goals.prot}g proteína / día</p>
       </div>
-      <div class="macro-chips">
-        <span class="chip kcal">🔥 ${Math.round(totals.kcal)} kcal sem</span>
-        <span class="chip prot">P ${Math.round(totals.prot)}g</span>
-        <span class="chip carb">C ${Math.round(totals.carb)}g</span>
-        <span class="chip fat">G ${Math.round(totals.fat)}g</span>
+      
+      <!-- Rings (Estilo Apple Watch) -->
+      <div class="rings-widget">
+        <div class="ring-wrap">
+          <svg class="ring" viewBox="0 0 36 36">
+            <path class="ring-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+            <path class="ring-fill water-ring" stroke-dasharray="${waterPct}, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+          </svg>
+          <div class="ring-icon">💧</div>
+        </div>
+        <div class="ring-wrap">
+          <svg class="ring" viewBox="0 0 36 36">
+            <path class="ring-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+            <path class="ring-fill steps-ring" stroke="${stepColor}" stroke-dasharray="${stepPct}, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+          </svg>
+          <div class="ring-icon">👟</div>
+        </div>
       </div>
     </section>
 
-    <div class="day-pills" id="pills">
-      ${plan.semana.map(d => {
-        const ab = d.dia[0] === "M" && d.dia[1] === "i" ? "X" : (d.dia === "Sábado" ? "S" : d.dia[0]);
-        const isTr = AppState.entrenosDias[prof][d.dia];
-        return `<button class="day-pill${d.dia === sel ? ' active' : ''}" data-pill="${d.dia}">
-          <span class="ab">${ab}</span>
-          <span class="full">${DAY_SHORT[d.dia]}</span>
-          ${isTr ? '<span class="train-mark">🏋️</span>' : ''}
-        </button>`;
-      }).join("")}
+    <div class="date-nav">
+      <button class="date-btn" data-act="prev-day">◀</button>
+      <div class="date-display">
+        <input type="date" id="global-date" value="${exactDate}" max="${currentDateKey()}" />
+        <span class="date-text">${DAY_SHORT[dayName]}, ${dateFmt}</span>
+      </div>
+      <button class="date-btn" data-act="next-day" ${isToday ? 'disabled style="opacity:0.3"' : ''}>▶</button>
     </div>
 
     <div class="day-view" id="day-view">
       <div class="day-card-big${tr ? ' training' : ''}">
         <div class="day-header-big">
-          <div class="day-header-row">
-            <div class="day-name-big" data-act="day-detail" data-day="${day.dia}">${day.dia}</div>
-          </div>
           <button class="btn-train${tr ? ' on' : ''}" data-act="toggle-train" data-day="${day.dia}">
             ${tr ? "🏋️ Entrenamiento activo ✓" : "🏋️ Día de entrenamiento"}
           </button>
@@ -1273,12 +1342,32 @@ function renderNutri() {
   mer?.addEventListener("change", () => { plan.meriendasFijas = mer.value.trim(); saveAll(); syncToGithub(); render(); });
 
   // Event listener para input de pasos
-  const stInp = document.getElementById("steps-in-" + sel);
+  const dateInp = document.getElementById("global-date");
+  if (dateInp) {
+    dateInp.addEventListener("change", (e) => {
+      AppState.selectedDate = e.target.value;
+      render();
+    });
+  }
+  document.querySelectorAll(".date-btn").forEach(b => b.addEventListener("click", e => {
+    const act = e.currentTarget.dataset.act;
+    const [y, m, d] = (AppState.selectedDate || currentDateKey()).split("-").map(Number);
+    const dateObj = new Date(y, m - 1, d);
+    if (act === "prev-day") dateObj.setDate(dateObj.getDate() - 1);
+    if (act === "next-day") dateObj.setDate(dateObj.getDate() + 1);
+    const newDate = `${dateObj.getFullYear()}-${String(dateObj.getMonth()+1).padStart(2,'0')}-${String(dateObj.getDate()).padStart(2,'0')}`;
+    if (newDate <= currentDateKey()) {
+      AppState.selectedDate = newDate;
+      render();
+    }
+  }));
+
+  const stInp = document.getElementById("steps-in-" + day.dia);
   stInp?.addEventListener("change", (e) => {
     let v = parseInt(e.target.value, 10);
     if (isNaN(v) || v < 0) v = 0;
-    const exactDate = getDateForDay(sel);
-    if (!AppState.history[prof][exactDate]) AppState.history[prof][exactDate] = { steps: 0, water: 0, trained: false };
+    const exactDate = AppState.selectedDate || currentDateKey();
+    if (!AppState.history[prof][exactDate]) AppState.history[prof][exactDate] = { steps: 0, water: 0, trained: false, comments: {} };
     AppState.history[prof][exactDate].steps = v;
     saveAll(); syncToGithub(); render();
   });
@@ -1287,6 +1376,12 @@ function renderNutri() {
 function renderMealBig(day, slot, title) {
   const m = day[slot];
   const empty = !m.nombre;
+  
+  const exactDate = AppState.selectedDate || currentDateKey();
+  const prof = AppState.activeProfile;
+  const hData = AppState.history?.[prof]?.[exactDate] || {};
+  const comments = hData.comments?.[slot] || "";
+
   return `
     <div class="meal-card" data-meal="${slot}" data-day="${day.dia}">
       <div class="meal-head">${title}</div>
@@ -1297,10 +1392,12 @@ function renderMealBig(day, slot, title) {
         <span class="chip carb">🌾 ${Math.round(m.carbohidratos||0)}g</span>
         <span class="chip fat">💧 ${Math.round(m.grasas||0)}g</span>
       </div>
+      ${comments ? `<div style="background:var(--bg-2);padding:8px 12px;border-radius:8px;font-size:13px;margin:8px 0;border:1px solid var(--border)">📝 <b>Diario:</b> ${escapeHtml(comments)}</div>` : ''}
       <div class="meal-actions">
-        <button data-act="swap"   data-day="${day.dia}" data-slot="${slot}">🔄 Intercambiar</button>
-        <button data-act="subst"  data-day="${day.dia}" data-slot="${slot}">🔁 Sustituir</button>
-        <button data-act="edit"   data-day="${day.dia}" data-slot="${slot}">✏️ Editar</button>
+        <button data-act="log-comment" data-slot="${slot}" style="background:var(--bg-2)">📝 Diario real</button>
+        <button data-act="swap"   data-slot="${slot}">🔄 Intercambiar</button>
+        <button data-act="subst"  data-slot="${slot}">🔁 Sustituir</button>
+        <button data-act="edit"   data-slot="${slot}">✏️ Editar</button>
       </div>
     </div>
   `;
@@ -1346,11 +1443,10 @@ function onCalClick(e) {
   const t = e.target.closest("[data-act]");
   if (!t) return;
   const act = t.dataset.act;
-  const day = t.dataset.day;
   const slot = t.dataset.slot;
   const prof = AppState.activeProfile;
-  const exactDate = getDateForDay(day);
-  if (!AppState.history[prof][exactDate]) AppState.history[prof][exactDate] = { steps: 0, water: 0, trained: false };
+  const exactDate = AppState.selectedDate || currentDateKey();
+  if (!AppState.history[prof][exactDate]) AppState.history[prof][exactDate] = { steps: 0, water: 0, trained: false, comments: {} };
   const hData = AppState.history[prof][exactDate];
 
   if (act === "toggle-train") {
@@ -1368,14 +1464,40 @@ function onCalClick(e) {
     hData.steps = (hData.steps || 0) + val;
     saveAll(); syncToGithub(); render();
   } else if (act === "day-detail") {
-    openDayDrawer(day);
+    openDayDrawer(AppState.plans[prof].semana.find(d => d.dia === t.dataset.day)?.dia || DAYS[0]);
+  } else if (act === "log-comment") {
+    openCommentModal(slot, exactDate);
   } else if (act === "swap") {
-    openSwapModal(day, slot);
+    openSwapModal(AppState.plans[prof].semana.find(d => d.dia === t.closest(".meal-card").dataset.day)?.dia || DAYS[0], slot);
   } else if (act === "subst") {
-    openSubstModal(day, slot);
+    openSubstModal(AppState.plans[prof].semana.find(d => d.dia === t.closest(".meal-card").dataset.day)?.dia || DAYS[0], slot);
   } else if (act === "edit") {
-    openEditModal(day, slot);
+    openEditModal(AppState.plans[prof].semana.find(d => d.dia === t.closest(".meal-card").dataset.day)?.dia || DAYS[0], slot);
   }
+}
+
+function openCommentModal(slot, exactDate) {
+  const prof = AppState.activeProfile;
+  if (!AppState.history[prof][exactDate]) AppState.history[prof][exactDate] = { steps: 0, water: 0, trained: false, comments: {} };
+  if (!AppState.history[prof][exactDate].comments) AppState.history[prof][exactDate].comments = {};
+  const currentComment = AppState.history[prof][exactDate].comments[slot] || "";
+
+  openModal(`
+    <h3>📝 Diario Real - ${slot === 'comida' ? 'Comida' : 'Cena'}</h3>
+    <p class="sub">Escribe lo que realmente has comido para guardarlo en el historial permanente.</p>
+    <textarea id="comment-text" style="width:100%;height:100px;margin-bottom:12px;padding:8px" placeholder="Ej. Comí una ensalada con zanahoria, tomate, queso cottage y atún...">${escapeHtml(currentComment)}</textarea>
+    <div class="actions">
+      <button class="btn-cancel" data-x="cancel">Cancelar</button>
+      <button class="btn-confirm" data-x="save-comment">💾 Guardar Registro</button>
+    </div>
+  `);
+  document.getElementById("modal-body").addEventListener("click", e => {
+    if (e.target.dataset.x === "cancel") closeModal();
+    if (e.target.dataset.x === "save-comment") {
+      AppState.history[prof][exactDate].comments[slot] = document.getElementById("comment-text").value.trim();
+      saveAll(); syncToGithub(); closeModal(); render();
+    }
+  });
 }
 
 /* ============================================================= */
@@ -2256,6 +2378,8 @@ function renderProgress() {
       const steps = d.steps || 0;
       const water = d.water || 0;
       const tr = d.trained || false;
+      const commC = d.comments?.comida || "";
+      const commD = d.comments?.cena || "";
       
       let stepColor = "#f59e0b";
       let stepBadge = "";
@@ -2276,6 +2400,12 @@ function renderProgress() {
             </span>
           </div>
           <div class="steps-bar" style="margin:0"><div class="fill" style="width:${stepPct}%;background:${stepColor}"></div></div>
+          ${commC || commD ? `
+            <div style="background:var(--bg-2);padding:10px;border-radius:8px;font-size:12px;margin-top:4px;display:flex;flex-direction:column;gap:6px;border:1px solid var(--border)">
+              ${commC ? `<div><strong style="color:var(--text)">☀️ Comida:</strong> ${escapeHtml(commC)}</div>` : ''}
+              ${commD ? `<div><strong style="color:var(--text)">🌙 Cena:</strong> ${escapeHtml(commD)}</div>` : ''}
+            </div>
+          ` : ''}
         </div>
       `;
     }
