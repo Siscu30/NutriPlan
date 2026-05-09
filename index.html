@@ -879,15 +879,22 @@ body.dark .banner-train { color: #fed7aa; background: linear-gradient(135deg, rg
 .cal-header h3 { margin: 0; font-size: 16px; text-transform: capitalize; }
 .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-bottom: 24px; }
 .cal-dow { text-align: center; font-size: 11px; font-weight: 700; color: var(--muted); padding: 4px 0; }
-.cal-day { aspect-ratio: 1; background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 4px; display: flex; flex-direction: column; cursor: pointer; position: relative; }
-.cal-day.empty { background: transparent; border-color: transparent; cursor: default; }
+.cal-day { min-height: 80px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 4px; display: flex; flex-direction: column; cursor: pointer; position: relative; overflow: hidden; }
+.cal-day.empty { background: transparent; border-color: transparent; cursor: default; min-height: 0; }
 .cal-day.today { border-color: var(--fran); border-width: 2px; }
 .cal-day.future { opacity: 0.5; pointer-events: none; }
-.cal-day .d-num { font-size: 12px; font-weight: 700; margin-bottom: auto; }
-.cal-badges { display: flex; gap: 2px; flex-wrap: wrap; justify-content: flex-end; }
+.cal-day .d-num { font-size: 12px; font-weight: 700; margin-bottom: 4px; }
+.cal-day-data { display: flex; flex-direction: column; gap: 2px; font-size: 11px; font-weight: 600; line-height: 1.2; }
+.cal-day-data div { display: flex; justify-content: space-between; align-items: center; }
+.cal-badges { display: flex; gap: 2px; flex-wrap: wrap; margin-top: auto; justify-content: flex-end; }
 .cal-badges span { font-size: 10px; }
 .cal-comments { display: flex; flex-direction: column; gap: 8px; }
 .cal-comment-card { background: var(--card); padding: 12px; border-radius: 8px; border: 1px solid var(--border); font-size: 13px; display: flex; flex-direction: column; gap: 4px; }
+.stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+.stats-card { background: var(--card); padding: 16px; border-radius: var(--r-md); border: 1px solid var(--border); display: flex; flex-direction: column; gap: 4px; }
+.stats-card.full { grid-column: 1 / -1; }
+.stats-val { font-size: 24px; font-weight: 800; color: var(--text); }
+.stats-lbl { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
 
 /* ============ TOAST + CONFETTI ============ */
 .toast-stack { position: fixed; bottom: calc(96px + var(--safe-bot)); left: 50%; transform: translateX(-50%); z-index: 1000; display: flex; flex-direction: column; gap: 8px; }
@@ -982,15 +989,23 @@ body.dark .banner-train { color: #fed7aa; background: linear-gradient(135deg, rg
 
   <!-- PROGRESO -->
   <main id="sec-progress" class="section">
-    <h1 class="section-title">📈 Mi Progreso</h1>
-    <p class="section-sub">Histórico mensual de actividad</p>
+    <h1 class="section-title">📅 Calendario</h1>
+    <p class="section-sub">Histórico diario de actividad</p>
     <div id="progress-content"></div>
+  </main>
+  
+  <!-- ESTADÍSTICAS -->
+  <main id="sec-stats" class="section">
+    <h1 class="section-title">📊 Estadísticas</h1>
+    <p class="section-sub">Resumen de tu rendimiento</p>
+    <div id="stats-content"></div>
   </main>
 
   <!-- BOTTOM NAV -->
   <nav class="bottomnav">
     <button data-sec="nutri" class="active"><span class="glyph">🥗</span><span>Nutrición</span></button>
-    <button data-sec="progress"><span class="glyph">📈</span><span>Progreso</span></button>
+    <button data-sec="progress"><span class="glyph">📅</span><span>Historial</span></button>
+    <button data-sec="stats"><span class="glyph">📊</span><span>Stats</span></button>
     <button data-sec="shop"><span class="glyph">🛒</span><span>Compra</span></button>
     <button data-sec="import"><span class="glyph">📥</span><span>Mi Plan</span></button>
   </nav>
@@ -1192,6 +1207,7 @@ function render() {
   renderNutri();
   renderShop();
   renderProgress();
+  renderStats();
   renderImport();
 }
 
@@ -2416,11 +2432,18 @@ function renderProgress() {
     const isToday = dateStr === todayKey;
     const isFuture = dateStr > todayKey;
 
-    let badges = "";
-    if (hData.trained) badges += `<span title="Entrenado">🏋️</span>`;
-    if (hData.water >= 8) badges += `<span title="2L Agua">💧</span>`;
-    if (hData.steps >= 10000) badges += `<span title="10k+ Pasos">🔥</span>`;
-    else if (hData.steps >= 6000) badges += `<span title="6k+ Pasos" style="color:#10b981">👟</span>`;
+    let dataHtml = "";
+    if (hData.water || hData.steps || hData.trained) {
+      dataHtml = `<div class="cal-day-data">`;
+      if (hData.water) dataHtml += `<div><span>💧</span><span>${hData.water}</span></div>`;
+      if (hData.steps) {
+        const sFmt = hData.steps >= 1000 ? (hData.steps/1000).toFixed(1) + "k" : hData.steps;
+        const color = hData.steps >= 10000 ? "#10b981" : (hData.steps >= 6000 ? "#f59e0b" : "inherit");
+        dataHtml += `<div style="color:${color}"><span>👟</span><span>${sFmt}</span></div>`;
+      }
+      if (hData.trained) dataHtml += `<div><span>🏋️</span><span>✓</span></div>`;
+      dataHtml += `</div>`;
+    }
 
     let cls = "cal-day";
     if (isToday) cls += " today";
@@ -2429,7 +2452,7 @@ function renderProgress() {
     html += `
       <div class="${cls}" ${isFuture ? "" : `onclick="openEditPastModal('${dateStr}')"`}>
         <div class="d-num">${d}</div>
-        <div class="cal-badges">${badges}</div>
+        ${dataHtml}
       </div>
     `;
 
@@ -2469,6 +2492,68 @@ function renderProgress() {
       renderProgress();
     });
   });
+}
+
+function renderStats() {
+  const root = document.getElementById("stats-content");
+  if (!root) return;
+  const prof = AppState.activeProfile;
+  const hist = AppState.history[prof] || {};
+
+  const todayStr = currentDateKey();
+  const weekStartStr = currentWeekKey();
+  const [y, m] = todayStr.split("-");
+  const monthPrefix = `${y}-${m}-`;
+
+  let wSteps = 0, wWater = 0, wTrain = 0;
+  let mSteps = 0, mWater = 0, mTrain = 0, mDays = 0;
+
+  for (const [dateStr, hData] of Object.entries(hist)) {
+    if (dateStr >= weekStartStr && dateStr <= todayStr) {
+      wSteps += (hData.steps || 0);
+      wWater += (hData.water || 0);
+      if (hData.trained) wTrain++;
+    }
+    if (dateStr.startsWith(monthPrefix) && dateStr <= todayStr) {
+      mSteps += (hData.steps || 0);
+      mWater += (hData.water || 0);
+      if (hData.trained) mTrain++;
+      mDays++;
+    }
+  }
+
+  const avgSteps = mDays > 0 ? Math.round(mSteps / mDays) : 0;
+  const avgWater = mDays > 0 ? (mWater / mDays).toFixed(1) : 0;
+
+  root.innerHTML = `
+    <div class="stats-grid">
+      <div class="stats-card full" style="background:var(--fran);color:#fff">
+        <div class="stats-lbl" style="color:rgba(255,255,255,0.8)">Promedio Diario (Este Mes)</div>
+        <div style="display:flex;justify-content:space-between;margin-top:8px">
+          <div><div class="stats-val" style="color:#fff">👟 ${avgSteps}</div><div style="font-size:12px">pasos/día</div></div>
+          <div><div class="stats-val" style="color:#fff">💧 ${avgWater}</div><div style="font-size:12px">vasos/día</div></div>
+        </div>
+      </div>
+
+      <div class="stats-card full">
+        <h3 style="margin:0 0 8px;font-size:15px">📅 Esta Semana</h3>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;border-top:1px solid var(--border)">
+          <div style="text-align:center"><div class="stats-lbl">Pasos</div><div class="stats-val">${wSteps >= 1000 ? (wSteps/1000).toFixed(1)+'k' : wSteps}</div></div>
+          <div style="text-align:center"><div class="stats-lbl">Vasos</div><div class="stats-val">${wWater}</div></div>
+          <div style="text-align:center"><div class="stats-lbl">Entrenos</div><div class="stats-val">${wTrain}</div></div>
+        </div>
+      </div>
+
+      <div class="stats-card full">
+        <h3 style="margin:0 0 8px;font-size:15px">🗓️ Este Mes</h3>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;border-top:1px solid var(--border)">
+          <div style="text-align:center"><div class="stats-lbl">Pasos</div><div class="stats-val">${mSteps >= 1000 ? (mSteps/1000).toFixed(1)+'k' : mSteps}</div></div>
+          <div style="text-align:center"><div class="stats-lbl">Vasos</div><div class="stats-val">${mWater}</div></div>
+          <div style="text-align:center"><div class="stats-lbl">Entrenos</div><div class="stats-val">${mTrain}</div></div>
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 /* ============================================================= */
