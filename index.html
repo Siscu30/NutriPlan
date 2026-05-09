@@ -327,16 +327,9 @@ body.dark .profile-tabs button.active[data-prof="lua"]  { color: #ccfbf1; }
 }
 .day-pill.active .train-dot { background: #fff; }
 
-.day-view { animation: dayfade .2s ease; }
+.day-view { animation: dayfade .2s ease; display: flex; flex-direction: column; gap: 10px; }
 @keyframes dayfade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
-.day-card-big {
-  background: var(--card);
-  backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
-  border: 1px solid var(--border);
-  border-radius: var(--r-xl);
-  overflow: hidden;
-  box-shadow: var(--shadow-card);
-}
+/* day-card-big: now transparent wrapper — styles moved to MEAL CARDS section above */
 .day-header-big {
   padding: 18px 18px 14px;
   border-bottom: 1px solid var(--border);
@@ -415,36 +408,178 @@ body.dark .train-note-tip { color: #fed7aa; background: rgba(249,115,22,.12); }
 .day-macros .pill.carb { color: var(--carb); }
 .day-macros .pill.fat  { color: var(--fat); }
 
-.meal-card {
-  padding: 18px;
-  border-bottom: 1px solid var(--border);
+/* ============ MEAL CARDS — STANDALONE CARDS ============ */
+
+/* El contenedor ya no agrupa las dos cards — eliminamos su overflow/fondo */
+.day-card-big {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   display: flex; flex-direction: column; gap: 10px;
+  padding: 0;
 }
-.meal-card:last-child { border-bottom: 0; }
-.meal-head { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--muted); font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
-.meal-name { font-size: 17px; font-weight: 700; line-height: 1.35; min-height: 18px; letter-spacing: -.01em; }
+/* El header del día sí mantiene card propia */
+.day-header-big {
+  background: var(--card);
+  backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-card);
+}
+.day-card-big.training .day-header-big {
+  background: linear-gradient(135deg, rgba(249,115,22,.14), rgba(239,68,68,.08)), var(--card);
+  border-color: rgba(249,115,22,.3);
+}
+.day-card-big.training { border-color: transparent; }
+
+/* Cada meal-card es ahora una card independiente */
+.meal-card {
+  background: var(--card);
+  backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-card);
+  padding: 18px;
+  display: flex; flex-direction: column; gap: 12px;
+  position: relative;
+  overflow: hidden;
+  transition: box-shadow .2s, transform .15s;
+}
+.meal-card:last-child { border-bottom: none; }
+
+/* Franja de color en el borde izquierdo — Comida */
+.meal-card[data-meal="comida"] {
+  border-left: 3px solid rgba(249,115,22,0.6);
+}
+.meal-card[data-meal="comida"]::before {
+  content: "";
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, rgba(249,115,22,0.5), rgba(251,191,36,0.3), transparent);
+}
+/* Franja de color en el borde izquierdo — Cena */
+.meal-card[data-meal="cena"] {
+  border-left: 3px solid rgba(99,102,241,0.55);
+}
+.meal-card[data-meal="cena"]::before {
+  content: "";
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, rgba(99,102,241,0.45), rgba(167,139,250,0.25), transparent);
+}
+
+.meal-head {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 10.5px; color: var(--muted); font-weight: 800;
+  letter-spacing: .08em; text-transform: uppercase;
+}
+.meal-head-icon {
+  width: 26px; height: 26px; border-radius: 8px;
+  display: grid; place-items: center; font-size: 14px;
+  flex-shrink: 0;
+}
+.meal-card[data-meal="comida"] .meal-head-icon {
+  background: rgba(249,115,22,0.12);
+}
+.meal-card[data-meal="cena"] .meal-head-icon {
+  background: rgba(99,102,241,0.12);
+}
+
+.meal-name {
+  font-size: 16px; font-weight: 700; line-height: 1.4;
+  min-height: 18px; letter-spacing: -.01em; color: var(--text);
+}
 .meal-name.empty { color: var(--dim); font-style: italic; font-weight: 500; }
+
+/* Chips de macros */
 .meal-macros { display: flex; flex-wrap: wrap; gap: 6px; }
-.meal-macros .chip { font-size: 12px; padding: 5px 10px; }
-.meal-actions { display: flex; gap: 8px; margin-top: 4px; flex-wrap: wrap; }
+.meal-macros .chip { font-size: 11.5px; padding: 5px 10px; border-radius: 999px; font-weight: 700; }
+
+/* Selector de variante (proteína / carbohidrato) */
+.variant-selector {
+  background: var(--bg-2);
+  border: 1px solid var(--border-2);
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.variant-selector label {
+  font-size: 11px; font-weight: 800; color: var(--muted);
+  letter-spacing: .05em; text-transform: uppercase;
+}
+.variant-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.variant-chip {
+  padding: 6px 14px; border-radius: 999px; font-size: 13px; font-weight: 600;
+  border: 1.5px solid var(--border-2); background: var(--card); color: var(--text);
+  cursor: pointer; transition: all .15s;
+}
+.variant-chip.selected { background: var(--accent); border-color: var(--accent); color: #fff; }
+.variant-chip:hover:not(.selected) { border-color: var(--accent); color: var(--accent); }
+
+/* Botones de acción: 2 columnas, Editar full-width */
+.meal-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+  margin-top: 2px;
+}
 .meal-actions button {
-  flex: 1; min-width: 90px; padding: 10px 8px; border-radius: 10px; font-size: 13px; font-weight: 600;
-  background: var(--bg-2); border: 1px solid var(--border);
-  transition: background .15s, transform .1s, border-color .15s;
-  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 10px 8px; border-radius: 11px; font-size: 12.5px; font-weight: 600;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  transition: background .15s, transform .12s, border-color .15s;
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  color: var(--text);
 }
 .meal-actions button:hover { background: var(--card-2); border-color: var(--border-2); }
 .meal-actions button:active { transform: scale(.95); }
+.meal-actions button[data-act="edit"] {
+  grid-column: 1 / -1;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  padding: 7px;
+  border-style: dashed;
+}
+.meal-actions button[data-act="edit"]:hover { background: var(--bg-2); color: var(--text); border-style: solid; }
+
 .snack-badge {
   font-size: 10px; font-weight: 700; padding: 3px 7px; border-radius: 6px;
   background: rgba(168,85,247,.15); color: #d8b4fe; border: 1px solid rgba(168,85,247,.35);
   align-self: flex-start;
 }
 
+/* Nota del diario real */
+.meal-diary-note {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text);
+}
+.meal-diary-note .diary-kcal-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: rgba(245,158,11,0.12); color: var(--kcal);
+  border: 1px solid rgba(245,158,11,0.25);
+  padding: 2px 8px; border-radius: 999px;
+  font-size: 11px; font-weight: 700;
+  margin-top: 6px;
+}
+.tracker-card {
+  background: var(--card); border: 1px solid var(--border);
+  backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+  border-radius: var(--r-lg); padding: 14px;
+  box-shadow: var(--shadow-card); display: flex; flex-direction: column; gap: 8px;
+}
+.tracker-head { display: flex; align-items: center; justify-content: space-between; font-weight: 800; font-size: 14px; }
+.tracker-head span { font-size: 12px; font-weight: 600; color: var(--muted); }
+
 /* ============ WIDGETS AGUA Y PASOS ============ */
 .trackers-row {
   display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
-  margin-bottom: 16px; margin-top: -6px;
+  margin-bottom: 0; margin-top: 0;
 }
 .tracker-widget {
   background: var(--card); border: 1px solid var(--border);
@@ -1309,8 +1444,8 @@ function renderNutri() {
 
       ${getTrackersHtml(exactDate, prof, day.dia)}
 
-      ${renderMealBig(day, "comida", "🍽️ Comida")}
-        ${renderMealBig(day, "cena", "🌙 Cena")}
+      ${renderMealBig(day, "comida")}
+      ${renderMealBig(day, "cena")}
       </div>
       ${tr ? `<div class="train-note-tip">💡 Día de entreno: considera añadir una fuente extra de proteína o hidratos en la comida</div>` : ""}
       ${meriendaSpecial ? `<div style="margin-top:10px"><span class="snack-badge">🍎 Merienda especial: ${escapeHtml(day.meriendaEspecial)}</span></div>` : ""}
@@ -1452,7 +1587,152 @@ function getTrackersHtml(exactDate, prof, dayName) {
   `;
 }
 
-function renderMealBig(day, slot, title) {
+/* ============================================================= */
+/* FOOD KCAL DATABASE (approx per 100g unless noted)              */
+/* ============================================================= */
+const FOOD_KCAL = {
+  // Proteínas
+  "pollo": 165, "pavo": 135, "ternera": 215, "cerdo": 242, "cordero": 294,
+  "salmon": 208, "salmón": 208, "merluza": 82, "dorada": 100, "atun": 132, "atún": 132,
+  "sardinas": 208, "caballa": 205, "bacalao": 82, "gambas": 85, "langostino": 90,
+  "huevo": 155, "huevos": 155, "tofu": 76, "seitan": 120, "jamon": 145, "jamón": 145,
+  "queso": 350, "queso fresco": 98, "cottage": 98, "mozzarella": 280,
+  // Carbohidratos
+  "patata": 77, "boniato": 86, "arroz": 130, "pasta": 131, "pan": 265,
+  "quinoa": 120, "avena": 389, "copos": 389, "fajita": 300, "wrap": 290,
+  // Verduras
+  "tomate": 18, "lechuga": 15, "espinaca": 23, "brocol": 34, "brécol": 34,
+  "brócoli": 34, "calabacin": 17, "calabacín": 17, "berenjena": 25, "pimiento": 20,
+  "zanahoria": 41, "cebolla": 40, "champiñon": 22, "champiñón": 22, "esparragos": 20,
+  "ensalada": 15, "aguacate": 160, "calabaza": 26, "maiz": 86, "maíz": 86,
+  // Lácteos
+  "yogur": 59, "leche": 42, "kefir": 52, "kéfir": 52,
+  // Fruta
+  "fruta": 60, "manzana": 52, "platano": 89, "plátano": 89, "naranja": 47,
+  "pera": 57, "uva": 67, "fresa": 32, "melon": 34, "melón": 34, "sandia": 30, "sandía": 30,
+  // Extras
+  "aceite": 884, "aceite de oliva": 884, "mantequilla": 717,
+  "pizza": 266, "tortilla": 185, "revuelto": 160
+};
+
+function estimateKcalFromText(text) {
+  if (!text) return null;
+  const lower = text.toLowerCase();
+  // Busca patrones: "200g de pollo", "pollo 150g", "2 huevos", etc.
+  const entries = [];
+  const regexGrams = /(\d+)\s*g(?:ramos?)?\s+(?:de\s+)?([a-záéíóúüñ\s]+)/gi;
+  const regexOf = /([a-záéíóúüñ\s]+?)\s+(\d+)\s*g/gi;
+  const regexUnits = /(\d+)\s+(?:racion(?:es)?|huevos?|filetes?|latas?|yogures?)/gi;
+
+  let match;
+  while ((match = regexGrams.exec(lower)) !== null) {
+    const grams = parseInt(match[1]);
+    const food = match[2].trim().replace(/\s+/g, ' ');
+    entries.push({ food, grams });
+  }
+  while ((match = regexOf.exec(lower)) !== null) {
+    const food = match[1].trim().replace(/\s+/g, ' ');
+    const grams = parseInt(match[2]);
+    if (!entries.find(e => e.food === food)) entries.push({ food, grams });
+  }
+
+  // Sin gramos: busca palabras clave y asume porciones estándar
+  if (!entries.length) {
+    for (const [key, kcalPer100] of Object.entries(FOOD_KCAL)) {
+      if (lower.includes(key)) {
+        const stdGrams = ["arroz","pasta","avena","copos"].includes(key) ? 60 :
+                         ["patata","boniato"].includes(key) ? 200 :
+                         ["aceite","aceite de oliva","mantequilla"].includes(key) ? 15 :
+                         ["huevo","huevos"].includes(key) ? 110 :
+                         ["yogur"].includes(key) ? 125 :
+                         ["pizza"].includes(key) ? 250 :
+                         ["queso fresco","cottage"].includes(key) ? 100 :
+                         ["queso","mozzarella"].includes(key) ? 30 : 150;
+        entries.push({ food: key, grams: stdGrams });
+      }
+    }
+  }
+
+  if (!entries.length) return null;
+
+  let totalKcal = 0;
+  const breakdown = [];
+  for (const { food, grams } of entries) {
+    // Match more flexible
+    let kcalPer100 = null;
+    for (const [key, val] of Object.entries(FOOD_KCAL)) {
+      if (food.includes(key) || key.includes(food.split(' ')[0])) { kcalPer100 = val; break; }
+    }
+    if (!kcalPer100) continue;
+    const kcal = Math.round((kcalPer100 * grams) / 100);
+    totalKcal += kcal;
+    breakdown.push(`${food} ${grams}g → ${kcal} kcal`);
+  }
+  return totalKcal > 0 ? { total: totalKcal, breakdown } : null;
+}
+
+/* ============================================================= */
+/* VARIANT DETECTION — proteína/carbohidrato alternativo         */
+/* ============================================================= */
+const PROTEIN_VARIANTS = [
+  { match: /pollo/i,    label: "Pollo",   macroBase: { kcalPer100: 165, protPer100: 31, carbPer100: 0, fatPer100: 3.6 } },
+  { match: /pavo/i,     label: "Pavo",    macroBase: { kcalPer100: 135, protPer100: 29, carbPer100: 0, fatPer100: 1.7 } },
+  { match: /pescado|merluza|dorada/i, label: "Pescado blanco", macroBase: { kcalPer100: 82, protPer100: 18, carbPer100: 0, fatPer100: 1 } },
+  { match: /salm[oó]n/i, label: "Salmón", macroBase: { kcalPer100: 208, protPer100: 20, carbPer100: 0, fatPer100: 13 } },
+  { match: /at[uú]n/i,  label: "Atún",   macroBase: { kcalPer100: 132, protPer100: 28, carbPer100: 0, fatPer100: 1 } },
+  { match: /ternera|res/i, label: "Ternera", macroBase: { kcalPer100: 215, protPer100: 26, carbPer100: 0, fatPer100: 11 } },
+];
+const CARB_VARIANTS = [
+  { match: /patata/i,  label: "Patata",  macroBase: { kcalPer100: 77, protPer100: 2, carbPer100: 17, fatPer100: 0.1 } },
+  { match: /boniato/i, label: "Boniato", macroBase: { kcalPer100: 86, protPer100: 1.6, carbPer100: 20, fatPer100: 0.1 } },
+  { match: /arroz/i,   label: "Arroz",   macroBase: { kcalPer100: 130, protPer100: 2.7, carbPer100: 28, fatPer100: 0.3 } },
+  { match: /pasta/i,   label: "Pasta",   macroBase: { kcalPer100: 131, protPer100: 5, carbPer100: 25, fatPer100: 1.1 } },
+];
+
+function detectVariants(nombre) {
+  if (!nombre) return { proteins: [], carbs: [] };
+  const proteins = [], carbs = [];
+  // Si hay "/" en el nombre, detectamos opciones
+  const parts = nombre.split(/\/|\s+o\s+/i);
+  for (const p of parts) {
+    const trimmed = p.trim();
+    for (const pv of PROTEIN_VARIANTS) {
+      if (pv.match.test(trimmed) && !proteins.find(x => x.label === pv.label)) {
+        proteins.push(pv);
+      }
+    }
+    for (const cv of CARB_VARIANTS) {
+      if (cv.match.test(trimmed) && !carbs.find(x => x.label === cv.label)) {
+        carbs.push(cv);
+      }
+    }
+  }
+  return { proteins, carbs };
+}
+
+function computeVariantMacros(meal, protLabel, carbLabel) {
+  // Estima macros según la variante seleccionada
+  const pv = PROTEIN_VARIANTS.find(x => x.label === protLabel);
+  const cv = CARB_VARIANTS.find(x => x.label === carbLabel);
+  const protGrams = 200; // porción estándar proteína
+  const carbGrams = 250; // porción estándar carbohidrato
+
+  let kcal = meal.calorias || 0;
+  let prot = meal.proteinas || 0;
+  let carb = meal.carbohidratos || 0;
+  let fat  = meal.grasas || 0;
+
+  // Si no hay macros ya definidas, estima desde las variantes
+  if (!kcal && pv) {
+    kcal = Math.round((pv.macroBase.kcalPer100 * protGrams / 100) + (cv ? cv.macroBase.kcalPer100 * carbGrams / 100 : 0));
+    prot = Math.round(pv.macroBase.protPer100 * protGrams / 100);
+    carb = Math.round((cv ? cv.macroBase.carbPer100 * carbGrams / 100 : 0));
+    fat  = Math.round(pv.macroBase.fatPer100 * protGrams / 100);
+  }
+  return { kcal, prot, carb, fat };
+}
+
+function renderMealBig(day, slot) {
   const m = day[slot];
   const empty = !m.nombre;
   
@@ -1461,29 +1741,75 @@ function renderMealBig(day, slot, title) {
   const prof = AppState.activeProfile;
   const hData = AppState.history?.[prof]?.[exactDate] || {};
   const comments = hData.comments?.[slot] || "";
+  const diaryKcal = hData.diaryKcal?.[slot] || null;
 
-  let bgStyle = "";
-  if (slot === "comida") {
-    // Color suave para la comida (naranja pálido/melocotón)
-    bgStyle = "background: rgba(255, 237, 213, 0.4); border-color: rgba(251, 146, 60, 0.2);";
-  } else if (slot === "cena") {
-    // Color suave para la cena (índigo pálido/lavanda)
-    bgStyle = "background: rgba(224, 231, 255, 0.4); border-color: rgba(129, 140, 248, 0.2);";
+  const icon = slot === "comida" ? "🍽️" : "🌙";
+  const label = slot === "comida" ? "Comida" : "Cena";
+
+  // Detectar variantes
+  const { proteins, carbs } = detectVariants(m.nombre);
+  const hasVariants = proteins.length > 1 || carbs.length > 1;
+
+  // Variante seleccionada (guardada en history)
+  const selProt = hData.variantProt?.[slot] || (proteins[0]?.label || "");
+  const selCarb = hData.variantCarb?.[slot] || (carbs[0]?.label || "");
+
+  // Macros mostrados (según variante si aplica)
+  let displayKcal = Math.round(m.calorias||0);
+  let displayProt = Math.round(m.proteinas||0);
+  let displayCarb = Math.round(m.carbohidratos||0);
+  let displayFat  = Math.round(m.grasas||0);
+  if (hasVariants && (selProt || selCarb) && !m.calorias) {
+    const vm = computeVariantMacros(m, selProt, selCarb);
+    displayKcal = vm.kcal; displayProt = vm.prot; displayCarb = vm.carb; displayFat = vm.fat;
   }
 
+  // Construir nombre de display limpio (sin las barras)
+  const displayName = hasVariants
+    ? [selProt, selCarb].filter(Boolean).join(' + ') || m.nombre
+    : m.nombre;
+
+  const variantHtml = hasVariants ? `
+    <div class="variant-selector">
+      ${proteins.length > 1 ? `
+        <label>🥩 Proteína de hoy</label>
+        <div class="variant-chips">
+          ${proteins.map(pv => `<button class="variant-chip${selProt===pv.label?' selected':''}" data-act="set-prot" data-slot="${slot}" data-val="${pv.label}">${pv.label}</button>`).join('')}
+        </div>
+      ` : ''}
+      ${carbs.length > 1 ? `
+        <label style="margin-top:4px">🍚 Carbohidrato de hoy</label>
+        <div class="variant-chips">
+          ${carbs.map(cv => `<button class="variant-chip${selCarb===cv.label?' selected':''}" data-act="set-carb" data-slot="${slot}" data-val="${cv.label}">${cv.label}</button>`).join('')}
+        </div>
+      ` : ''}
+    </div>
+  ` : '';
+
+  const diaryHtml = comments ? `
+    <div class="meal-diary-note">
+      📝 <b>Diario:</b> ${escapeHtml(comments)}
+      ${diaryKcal ? `<div><span class="diary-kcal-badge">🔥 ~${diaryKcal} kcal estimadas</span></div>` : ''}
+    </div>
+  ` : '';
+
   return `
-    <div class="meal-card" data-meal="${slot}" data-day="${day.dia}" style="${bgStyle}">
-      <div class="meal-head">${title}</div>
-      <div class="meal-name${empty ? " empty" : ""}">${empty ? "Sin asignar" : escapeHtml(m.nombre)}</div>
-      <div class="meal-macros">
-        <span class="chip kcal">Kcal: ${Math.round(m.calorias||0)}</span>
-        <span class="chip prot">Prot: ${Math.round(m.proteinas||0)}g</span>
-        <span class="chip carb">Carb: ${Math.round(m.carbohidratos||0)}g</span>
-        <span class="chip fat">Grasas: ${Math.round(m.grasas||0)}g</span>
+    <div class="meal-card" data-meal="${slot}" data-day="${day.dia}">
+      <div class="meal-head">
+        <span class="meal-head-icon">${icon}</span>
+        ${label}
       </div>
-      ${comments ? `<div style="background:var(--bg);padding:8px 12px;border-radius:8px;font-size:13px;margin:8px 0;border:1px solid rgba(0,0,0,0.05)">📝 <b>Diario:</b> ${escapeHtml(comments)}</div>` : ''}
+      <div class="meal-name${empty ? " empty" : ""}">${empty ? "Sin asignar" : escapeHtml(hasVariants ? m.nombre : displayName)}</div>
+      ${variantHtml}
+      <div class="meal-macros">
+        <span class="chip kcal">🔥 ${displayKcal} kcal</span>
+        <span class="chip prot">Prot: ${displayProt}g</span>
+        <span class="chip carb">Carb: ${displayCarb}g</span>
+        <span class="chip fat">Grasas: ${displayFat}g</span>
+      </div>
+      ${diaryHtml}
       <div class="meal-actions">
-        <button data-act="log-comment" data-slot="${slot}" style="background:var(--bg)">📝 Diario real</button>
+        <button data-act="log-comment" data-slot="${slot}">📝 Diario real</button>
         <button data-act="swap"   data-slot="${slot}">🔄 Intercambiar</button>
         <button data-act="subst"  data-slot="${slot}">🔁 Sustituir</button>
         <button data-act="edit"   data-slot="${slot}">✏️ Editar</button>
@@ -1572,6 +1898,14 @@ function onCalClick(e) {
     shouldRerenderModal = true;
   } else if (act === "day-detail") {
     openDayDrawer(AppState.plans[prof].semana.find(d => d.dia === targetDay)?.dia || DAYS[0]);
+  } else if (act === "set-prot") {
+    if (!AppState.history[prof][exactDate].variantProt) AppState.history[prof][exactDate].variantProt = {};
+    AppState.history[prof][exactDate].variantProt[slot] = t.dataset.val;
+    saveAll(); render();
+  } else if (act === "set-carb") {
+    if (!AppState.history[prof][exactDate].variantCarb) AppState.history[prof][exactDate].variantCarb = {};
+    AppState.history[prof][exactDate].variantCarb[slot] = t.dataset.val;
+    saveAll(); render();
   } else if (act === "log-comment") {
     openCommentModal(slot, exactDate);
   } else if (act === "swap") {
@@ -1591,21 +1925,55 @@ function openCommentModal(slot, exactDate) {
   const prof = AppState.activeProfile;
   if (!AppState.history[prof][exactDate]) AppState.history[prof][exactDate] = { steps: 0, water: 0, trained: false, comments: {} };
   if (!AppState.history[prof][exactDate].comments) AppState.history[prof][exactDate].comments = {};
+  if (!AppState.history[prof][exactDate].diaryKcal) AppState.history[prof][exactDate].diaryKcal = {};
   const currentComment = AppState.history[prof][exactDate].comments[slot] || "";
 
-  openModal(`
-    <h3>📝 Diario Real - ${slot === 'comida' ? 'Comida' : 'Cena'}</h3>
-    <p class="sub">Escribe lo que realmente has comido para guardarlo en el historial permanente.</p>
-    <textarea id="comment-text" style="width:100%;height:100px;margin-bottom:12px;padding:8px" placeholder="Ej. Comí una ensalada con zanahoria, tomate, queso cottage y atún...">${escapeHtml(currentComment)}</textarea>
-    <div class="actions">
-      <button class="btn-cancel" data-x="cancel">Cancelar</button>
-      <button class="btn-confirm" data-x="save-comment">💾 Guardar Registro</button>
-    </div>
-  `);
+  function buildModal(text, kcalInfo) {
+    const kcalHtml = kcalInfo ? `
+      <div style="margin-top:8px;padding:10px 12px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:10px;font-size:13px;">
+        <b>🔥 Estimación calórica: ~${kcalInfo.total} kcal</b>
+        <div style="margin-top:4px;color:var(--muted);font-size:12px">${kcalInfo.breakdown.join(' · ')}</div>
+        <div style="color:var(--dim);font-size:11px;margin-top:4px">Basado en porciones estándar. Añade cantidades en gramos para mayor precisión (ej: "200g de pollo").</div>
+      </div>
+    ` : text.length > 5 ? `<div style="margin-top:6px;color:var(--dim);font-size:12px;padding:6px 10px;background:var(--bg-2);border-radius:8px">💡 Añade cantidades (ej: "150g pollo, 200g patata") para estimar las calorías.</div>` : '';
+    openModal(`
+      <h3>📝 Diario Real - ${slot === 'comida' ? '🍽️ Comida' : '🌙 Cena'}</h3>
+      <p class="sub">Escribe lo que has comido. Si añades gramos estimaremos las calorías.</p>
+      <textarea id="comment-text" style="width:100%;height:110px;margin-bottom:4px;padding:10px;border:1px solid var(--border);border-radius:10px;background:var(--bg-2);color:var(--text);font-size:14px;resize:vertical" placeholder="Ej: 200g de pollo a la plancha, 200g de patata cocida, ensalada de tomate...">${escapeHtml(text)}</textarea>
+      ${kcalHtml}
+      <div class="actions" style="margin-top:12px">
+        <button class="btn-cancel" data-x="cancel">Cancelar</button>
+        <button class="btn-confirm" data-x="save-comment">💾 Guardar</button>
+      </div>
+    `);
+  }
+
+  buildModal(currentComment, currentComment ? estimateKcalFromText(currentComment) : null);
+
+  let debounceTimer;
+  document.getElementById("modal-body").addEventListener("input", e => {
+    if (e.target.id !== "comment-text") return;
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      const val = e.target.value;
+      const kcalInfo = val.length > 5 ? estimateKcalFromText(val) : null;
+      buildModal(val, kcalInfo);
+      // Restore focus and cursor
+      const ta = document.getElementById("comment-text");
+      if (ta) { ta.focus(); ta.setSelectionRange(val.length, val.length); }
+    }, 600);
+  });
+
   document.getElementById("modal-body").addEventListener("click", e => {
-    if (e.target.dataset.x === "cancel") closeModal();
+    if (e.target.dataset.x === "cancel") return closeModal();
     if (e.target.dataset.x === "save-comment") {
-      AppState.history[prof][exactDate].comments[slot] = document.getElementById("comment-text").value.trim();
+      const val = document.getElementById("comment-text").value.trim();
+      AppState.history[prof][exactDate].comments[slot] = val;
+      const kcalInfo = estimateKcalFromText(val);
+      if (kcalInfo) {
+        if (!AppState.history[prof][exactDate].diaryKcal) AppState.history[prof][exactDate].diaryKcal = {};
+        AppState.history[prof][exactDate].diaryKcal[slot] = kcalInfo.total;
+      }
       saveAll(); syncToGithub(); closeModal(); render();
     }
   });
