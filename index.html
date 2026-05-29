@@ -391,7 +391,10 @@ matchMedia('(prefers-color-scheme:dark)').addEventListener('change',()=>{if(sett
 /* ============ RING (SVG) ============ */
 function ring(pct,r,color){const c=2*Math.PI*r;const fill=Math.min(pct,1)*c;
   return `<circle cx="90" cy="90" r="${r}" fill="none" stroke="var(--track)" stroke-width="11"/>
-  <circle cx="90" cy="90" r="${r}" fill="none" stroke="${color}" stroke-width="11" stroke-linecap="round" stroke-dasharray="${fill.toFixed(1)} ${c.toFixed(1)}" transforfunction renderHoy(){
+  <circle cx="90" cy="90" r="${r}" fill="none" stroke="${color}" stroke-width="11" stroke-linecap="round" stroke-dasharray="${fill.toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 90 90)"/>`}
+
+/* ============ RENDER: HOY ============ */
+function renderHoy(){
   const s=settings(),d=S()[curDayIdx],t=dayTotals(d);
   const logKey = weekDateKeys()[curDayIdx];
   const lg=log(logKey);
