@@ -437,11 +437,6 @@ function renderHoy(){
 
   $('#sec-hoy').innerHTML=h;
   bindHoy();
-}tCard();
-  if(s.adherence)h+=adherenceCard();
-
-  $('#sec-hoy').innerHTML=h;
-  bindHoy();
 }
 function mbar(name,color,val,obj,u){const p=Math.min(val/obj*100,100);
   return `<div class="mbar"><div class="top"><b style="color:${color}">${name}</b><span>${Math.round(val)}/${obj}${u}</span></div><div class="bar"><div class="fill" style="width:${p}%;background:${color}"></div></div></div>`}
