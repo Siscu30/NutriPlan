@@ -277,6 +277,23 @@ body.dark .profile-tabs button.active[data-prof=lua]{color:#5eead4}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .empty{padding:36px 20px;text-align:center;color:var(--muted)}
 .empty .emo{font-size:40px;display:block;margin-bottom:8px}
+.cal-header { display: flex; align-items: center; justify-content: space-between; padding: 16px; background: var(--card); border-radius: var(--r-md); border: 1px solid var(--border); margin-bottom: 16px; }
+.cal-header button { font-size: 16px; width: 36px; height: 36px; border-radius: 50%; background: var(--bg-2); border: 1px solid var(--border); display: grid; place-items: center; color: var(--text); }
+.cal-header h3 { margin: 0; font-size: 16px; text-transform: capitalize; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-bottom: 24px; }
+.cal-dow { text-align: center; font-size: 11px; font-weight: 700; color: var(--muted); padding: 4px 0; }
+.cal-day { min-height: 80px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 4px; display: flex; flex-direction: column; cursor: pointer; position: relative; overflow: hidden; }
+.cal-day.empty { background: transparent; border-color: transparent; cursor: default; min-height: 0; }
+.cal-day.today { border-color: var(--accent); border-width: 2px; }
+.cal-day.future { opacity: 0.5; pointer-events: none; }
+.cal-day .d-num { font-size: 12px; font-weight: 700; margin-bottom: 4px; }
+.cal-day-data { display: flex; flex-direction: column; gap: 2px; font-size: 11px; font-weight: 600; line-height: 1.2; }
+.cal-day-data div { display: flex; justify-content: space-between; align-items: center; }
+.stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+.stats-card { background: var(--card); padding: 16px; border-radius: var(--r-md); border: 1px solid var(--border); display: flex; flex-direction: column; gap: 4px; }
+.stats-card.full { grid-column: 1 / -1; }
+.stats-val { font-size: 24px; font-weight: 800; color: var(--text); }
+.stats-lbl { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
 </style>
 </head>
 <body>
@@ -308,8 +325,8 @@ body.dark .profile-tabs button.active[data-prof=lua]{color:#5eead4}
 
   <!-- HOY -->
   <div class="section active" id="sec-hoy"></div>
-  <!-- SEMANA -->
-  <div class="section" id="sec-semana"></div>
+  <!-- HISTORIAL -->
+  <div class="section" id="sec-historial"></div>
   <!-- COMPRA -->
   <div class="section" id="sec-compra"></div>
   <!-- AJUSTES -->
@@ -317,7 +334,7 @@ body.dark .profile-tabs button.active[data-prof=lua]{color:#5eead4}
 
   <div class="nav">
     <button data-sec="hoy" class="active"><span class="glyph">📊</span>Hoy</button>
-    <button data-sec="semana"><span class="glyph">🗓️</span>Semana</button>
+    <button data-sec="historial"><span class="glyph">📈</span>Historial</button>
     <button data-sec="compra"><span class="glyph">🛒</span>Compra</button>
     <button data-sec="ajustes"><span class="glyph">⚙️</span>Ajustes</button>
   </div>
@@ -339,6 +356,7 @@ const DAYS=['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'
 const DAY_AB=['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
 let DB={plans:JSON.parse(JSON.stringify(SEED.plans)),plansHistory:{fran:[],lua:[]},user:{fran:freshUser(),lua:freshUser()},updatedAt:0};
 let curUser='fran', curSec='hoy', curDayIdx=todayIdx(), curWeekOff=0;
+let progressMonth='';
 
 function freshUser(){return{settings:JSON.parse(JSON.stringify(DEFAULT_SETTINGS)),weights:[],logs:{}}}
 function todayIdx(){return (new Date().getDay()+6)%7}
@@ -526,22 +544,104 @@ function bindHoy(){
   document.querySelectorAll('#sec-hoy [data-day]').forEach(b=>b.onclick=()=>{curDayIdx=+b.dataset.day;renderHoy()});
 }
 
-/* ============ RENDER: SEMANA ============ */
-function renderSemana(){
-  let pills=S().map((d,i)=>{const lg=DB.user[curUser].logs[weekDateKeys()[i]];const tr=lg&&lg['train_'+weekDateKeys()[i]];
-    return `<button class="day-pill ${i===curDayIdx?'active':''}" data-day="${i}"><span class="ab">${DAY_AB[i]}</span><span class="num">${d.dia}</span>${tr?'<span class="tr"></span>':''}</button>`}).join('');
-  const d=S()[curDayIdx],t=dayTotals(d);
-  let h=weekNavHeader()+`<div class="day-pills">${pills}</div>
-   <div class="card psum" style="margin-bottom:12px"><div class="who"><h2>${d.dia}</h2><p>Totales del día</p></div>
-   <div style="margin-left:auto;display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end">
-     <span class="chip kcal">🔥 ${Math.round(t.k)}</span><span class="chip prot">P ${Math.round(t.p)}</span><span class="chip carb">C ${Math.round(t.c)}</span><span class="chip fat">G ${Math.round(t.f)}</span></div></div>`;
-  h+=mealCard('comida','🍽️','Comida',d.comida,log(weekDateKeys()[curDayIdx]));
-  h+=mealCard('cena','🌙','Cena',d.cena,log(weekDateKeys()[curDayIdx]));
-  $('#sec-semana').innerHTML=h;
-  bindWeekNav();
-  document.querySelectorAll('[data-day]').forEach(b=>b.onclick=()=>{curDayIdx=+b.dataset.day;renderSemana()});
-  document.querySelectorAll('#sec-semana [data-edit]').forEach(b=>b.onclick=()=>editMeal(curDayIdx,b.dataset.edit));
-  document.querySelectorAll('#sec-semana [data-done]').forEach(b=>b.onclick=()=>{const lg=log(weekDateKeys()[curDayIdx]);lg.done=lg.done||{};lg.done[b.dataset.done]=!lg.done[b.dataset.done];save();renderSemana()});
+/* ============ RENDER: HISTORIAL ============ */
+function renderHistorial(){
+  const prof=curUser;
+  const hist=DB.user[prof].logs||{};
+  if(!progressMonth){
+    const d=new Date();progressMonth=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  }
+  const [yyyy,mm]=progressMonth.split('-').map(Number);
+  const mNames=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const mName=mNames[mm-1];
+
+  const firstDayObj=new Date(yyyy,mm-1,1);
+  const lastDayObj=new Date(yyyy,mm,0);
+  const daysInMonth=lastDayObj.getDate();
+  const startDow=(firstDayObj.getDay()+6)%7;
+
+  const todayKey=dateKey(0);
+
+  let h=`<div class="cal-header"><button data-act="cal-prev">◀</button><h3>${mName} ${yyyy}</h3><button data-act="cal-next">▶</button></div>
+  <div class="cal-grid">${['L','M','X','J','V','S','D'].map(d=>`<div class="cal-dow">${d}</div>`).join('')}`;
+
+  for(let i=0;i<startDow;i++) h+=`<div class="cal-day empty"></div>`;
+
+  let mSteps=0,mWater=0,mTrain=0,mDays=0;
+
+  for(let d=1;d<=daysInMonth;d++){
+    const dateStr=`${yyyy}-${String(mm).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const hData=hist[dateStr]||{};
+    const isToday=dateStr===todayKey;
+    const isFuture=dateStr>todayKey;
+
+    if(!isFuture && dateStr<=todayKey){
+      mSteps+=(hData.steps||0);
+      mWater+=(hData.water||0);
+      if(hData['train_'+dateStr]) mTrain++;
+      mDays++;
+    }
+
+    let dataHtml='';
+    if(hData.water||hData.steps||hData['train_'+dateStr]){
+      dataHtml=`<div class="cal-day-data">`;
+      if(hData.water) dataHtml+=`<div><span>💧</span><span>${hData.water}</span></div>`;
+      if(hData.steps){
+        const sFmt=hData.steps>=1000?(hData.steps/1000).toFixed(1)+'k':hData.steps;
+        const color=hData.steps>=10000?'#10b981':(hData.steps>=6000?'#f59e0b':'inherit');
+        dataHtml+=`<div style="color:${color}"><span>👟</span><span>${sFmt}</span></div>`;
+      }
+      if(hData['train_'+dateStr]) dataHtml+=`<div><span>🏋️</span><span>✓</span></div>`;
+      dataHtml+=`</div>`;
+    }
+
+    let cls="cal-day"+(isToday?' today':'')+(isFuture?' future':'');
+    h+=`<div class="${cls}" ${isFuture?'':`onclick="openEditPastModal('${dateStr}')"`}><div class="d-num">${d}</div>${dataHtml}</div>`;
+  }
+  h+=`</div>`;
+
+  // Stats block
+  const avgS=mDays?Math.round(mSteps/mDays):0;
+  const avgW=mDays?(mWater/mDays).toFixed(1):0;
+  h+=`<div class="section-title">Estadísticas del mes</div>
+  <div class="stats-grid">
+    <div class="stats-card"><span class="stats-lbl">Media Pasos</span><span class="stats-val" style="color:#10b981">${avgS.toLocaleString()}</span></div>
+    <div class="stats-card"><span class="stats-lbl">Media Agua</span><span class="stats-val" style="color:#3b82f6">${avgW} <span style="font-size:14px">v/d</span></span></div>
+    <div class="stats-card full"><span class="stats-lbl">Días Entrenados</span><span class="stats-val" style="color:#f97316">${mTrain} <span style="font-size:14px">días</span></span></div>
+  </div>`;
+
+  $('#sec-historial').innerHTML=h;
+  
+  document.querySelectorAll('#sec-historial button[data-act]').forEach(b=>b.onclick=e=>{
+    const act=e.currentTarget.dataset.act;
+    let m=mm, y=yyyy;
+    if(act==='cal-prev'){m--;if(m<1){m=12;y--}}
+    if(act==='cal-next'){m++;if(m>12){m=1;y++}}
+    progressMonth=`${y}-${String(m).padStart(2,'0')}`;
+    renderHistorial();
+  });
+}
+
+function openEditPastModal(exactDate){
+  const lg=log(exactDate);
+  const trKey='train_'+exactDate;
+  $('#modal').innerHTML=`<h3>📝 Día ${exactDate}</h3>
+    <p class="sub">Tus registros exactos de este día. Al guardar, afectarán también a los anillos de ese día.</p>
+    <div class="fld"><label>Pasos</label><input type="number" id="e-past-steps" value="${lg.steps||0}"></div>
+    <div class="fld"><label>Vasos de agua</label><input type="number" id="e-past-water" value="${lg.water||0}"></div>
+    <div class="set-row" style="margin-top:16px"><div class="tx"><div class="t">Entrenamiento</div><div class="d">¿Entrenaste este día?</div></div>
+      <div class="toggle ${lg[trKey]?'on':''}" id="e-past-train"></div>
+    </div>
+    <div class="m-acts" style="margin-top:24px"><button class="btn-cancel" id="e-cancel">Cancelar</button><button class="btn-ok" id="e-save">Guardar</button></div>`;
+  openModal();
+  $('#e-past-train').onclick=()=>$('#e-past-train').classList.toggle('on');
+  $('#e-cancel').onclick=closeModal;
+  $('#e-save').onclick=()=>{
+    lg.steps=+$('#e-past-steps').value||0;
+    lg.water=+$('#e-past-water').value||0;
+    lg[trKey]=$('#e-past-train').classList.contains('on');
+    save();closeModal();renderHistorial();toast('Día actualizado');
+  };
 }
 
 /* ============ EDIT MEAL MODAL ============ */
@@ -689,19 +789,28 @@ function ingestSteps(){const p=new URLSearchParams(location.search);const u=p.ge
 /* ============ NAV / RENDER ============ */
 function render(){applyTheme();
   if(curSec==='hoy')renderHoy();
-  else if(curSec==='semana')renderSemana();
+  else if(curSec==='historial')renderHistorial();
   else if(curSec==='compra')renderCompra();
   else if(curSec==='ajustes')renderAjustes();
-  $('#brandSub').textContent={hoy:'Resumen de hoy',semana:'Plan semanal',compra:'Lista de la compra',ajustes:'Ajustes de '+(curUser==='fran'?'Fran':'Lua')}[curSec];
+  $('#brandSub').textContent={hoy:'Resumen de hoy',historial:'Historial y Estadísticas',compra:'Lista de la compra',ajustes:'Ajustes de '+(curUser==='fran'?'Fran':'Lua')}[curSec];
 }
 function go(sec){curSec=sec;document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.sec===sec));
   document.querySelectorAll('.section').forEach(s=>s.classList.toggle('active',s.id==='sec-'+sec));render()}
-document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>go(b.dataset.sec));
-document.querySelectorAll('.profile-tabs button').forEach(b=>b.onclick=()=>{curUser=b.dataset.prof;
-  document.querySelectorAll('.profile-tabs button').forEach(x=>x.classList.toggle('active',x.dataset.prof===curUser));
-  document.body.classList.remove('profile-fran','profile-lua');document.body.classList.add('profile-'+curUser);render()});
-$('#themeBtn').onclick=()=>{const s=settings();s.theme=document.body.classList.contains('dark')?'light':'dark';save();applyTheme()};
-$('#logoutBtn').onclick=()=>{localStorage.removeItem('nutriplan_lastUser');$('#app').classList.remove('show');$('#login').style.display='grid'};
+
+function initSwipe(){
+  let tsX=0, tsY=0;
+  const sections=['hoy','historial','compra','ajustes'];
+  document.addEventListener('touchstart',e=>{tsX=e.changedTouches[0].screenX;tsY=e.changedTouches[0].screenY},{passive:true});
+  document.addEventListener('touchend',e=>{
+    const teX=e.changedTouches[0].screenX, teY=e.changedTouches[0].screenY;
+    const dx=teX-tsX, dy=teY-tsY;
+    if(Math.abs(dx)>Math.abs(dy) && Math.abs(dx)>50){
+      const i=sections.indexOf(curSec);
+      if(dx<0 && i<sections.length-1) go(sections[i+1]); // swipe left -> next
+      else if(dx>0 && i>0) go(sections[i-1]); // swipe right -> prev
+    }
+  },{passive:true});
+}
 
 /* ============ LOGIN ============ */
 function enter(user){curUser=user;localStorage.setItem('nutriplan_lastUser',user);
@@ -718,6 +827,13 @@ const last=stepUser||localStorage.getItem('nutriplan_lastUser');
 if(last&&['fran','lua'].includes(last)){enter(last)}
 else{applyTheme()}
 initSync();
+document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>go(b.dataset.sec));
+document.querySelectorAll('.profile-tabs button').forEach(b=>b.onclick=()=>{curUser=b.dataset.prof;
+  document.querySelectorAll('.profile-tabs button').forEach(x=>x.classList.toggle('active',x.dataset.prof===curUser));
+  document.body.classList.remove('profile-fran','profile-lua');document.body.classList.add('profile-'+curUser);render()});
+$('#themeBtn').onclick=()=>{const s=settings();s.theme=document.body.classList.contains('dark')?'light':'dark';save();applyTheme()};
+$('#logoutBtn').onclick=()=>{localStorage.removeItem('nutriplan_lastUser');$('#app').classList.remove('show');$('#login').style.display='grid'};
+initSwipe();
 
 /* ============ PWA ============ */
 if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{})}
