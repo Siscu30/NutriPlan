@@ -337,20 +337,39 @@ const DEFAULT_SETTINGS={weight:true,water:true,steps:true,shopping:true,adherenc
 /* ============ STATE ============ */
 const DAYS=['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
 const DAY_AB=['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
-let DB={plans:JSON.parse(JSON.stringify(SEED.plans)),user:{fran:freshUser(),lua:freshUser()},updatedAt:0};
-let curUser='fran', curSec='hoy', curDayIdx=todayIdx();
+let DB={plans:JSON.parse(JSON.stringify(SEED.plans)),plansHistory:{fran:[],lua:[]},user:{fran:freshUser(),lua:freshUser()},updatedAt:0};
+let curUser='fran', curSec='hoy', curDayIdx=todayIdx(), curWeekOff=0;
 
 function freshUser(){return{settings:JSON.parse(JSON.stringify(DEFAULT_SETTINGS)),weights:[],logs:{}}}
 function todayIdx(){return (new Date().getDay()+6)%7}
 function dateKey(off=0){const d=new Date();d.setDate(d.getDate()+off);return d.toISOString().slice(0,10)}
-function weekDateKeys(){const t=new Date();const mon=new Date(t);mon.setDate(t.getDate()-todayIdx());return DAYS.map((_,i)=>{const d=new Date(mon);d.setDate(mon.getDate()+i);return d.toISOString().slice(0,10)})}
+function viewingMonday(){const t=new Date();t.setDate(t.getDate()-todayIdx()+(curWeekOff*7));return t}
+function weekDateKeys(){const mon=viewingMonday();return DAYS.map((_,i)=>{const d=new Date(mon);d.setDate(mon.getDate()+i);return d.toISOString().slice(0,10)})}
 function log(date){const u=DB.user[curUser];if(!u.logs[date])u.logs[date]={water:0,steps:0,done:{}};return u.logs[date]}
 function settings(){return DB.user[curUser].settings}
-function S(){return DB.plans[curUser].semana}
+
+function migratePlans(){
+  if(!DB.plansHistory) DB.plansHistory={fran:[],lua:[]};
+  ['fran','lua'].forEach(u=>{
+    if(DB.plansHistory[u].length===0 && DB.plans[u]){
+      DB.plansHistory[u].push({startDate:'2020-01-01',plan:JSON.parse(JSON.stringify(DB.plans[u]))});
+    }
+  });
+}
+function activePlanPair(){
+  const vMon=viewingMonday().toISOString().slice(0,10);
+  const hist=DB.plansHistory[curUser];
+  let best=hist[0];
+  for(let p of hist){if(p.startDate<=vMon && p.startDate>best.startDate) best=p}
+  return best;
+}
+function activePlan(){return activePlanPair().plan}
+function S(){return activePlan().semana}
+
 
 /* ============ PERSIST ============ */
 function save(){DB.updatedAt=Date.now();try{localStorage.setItem('nutriplan_db',JSON.stringify(DB))}catch(e){}pushState()}
-function load(){try{const r=localStorage.getItem('nutriplan_db');if(r){const p=JSON.parse(r);DB.plans=p.plans||DB.plans;DB.user=p.user||DB.user;DB.updatedAt=p.updatedAt||0;['fran','lua'].forEach(k=>{DB.user[k]=Object.assign(freshUser(),DB.user[k]);DB.user[k].settings=Object.assign({},DEFAULT_SETTINGS,DB.user[k].settings)})}}catch(e){}}
+function load(){try{const r=localStorage.getItem('nutriplan_db');if(r){const p=JSON.parse(r);DB.plans=p.plans||DB.plans;DB.plansHistory=p.plansHistory||DB.plansHistory;DB.user=p.user||DB.user;DB.updatedAt=p.updatedAt||0;['fran','lua'].forEach(k=>{DB.user[k]=Object.assign(freshUser(),DB.user[k]);DB.user[k].settings=Object.assign({},DEFAULT_SETTINGS,DB.user[k].settings)})}}catch(e){} migratePlans(); }
 
 /* ============ SYNC (Supabase) — pega tus 2 datos aquí ============ */
 const SUPABASE_URL='https://swcxredmjvrwaragmghm.supabase.co';   /* <-- aquí tu Project URL (https://xxxx.supabase.co) */
@@ -393,6 +412,16 @@ function ring(pct,r,color){const c=2*Math.PI*r;const fill=Math.min(pct,1)*c;
   return `<circle cx="90" cy="90" r="${r}" fill="none" stroke="var(--track)" stroke-width="11"/>
   <circle cx="90" cy="90" r="${r}" fill="none" stroke="${color}" stroke-width="11" stroke-linecap="round" stroke-dasharray="${fill.toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 90 90)"/>`}
 
+function formatWeekRange(){const k=weekDateKeys();const o={month:'short',day:'numeric'};return new Date(k[0]).toLocaleDateString('es-ES',o)+' - '+new Date(k[6]).toLocaleDateString('es-ES',o)}
+function weekNavHeader(){
+  let lbl = curWeekOff===0?'Esta semana':(curWeekOff===1?'Próxima semana':(curWeekOff===-1?'Semana pasada':`Semana ${curWeekOff>0?'+':''}${curWeekOff}`));
+  return `<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-xl);margin-bottom:14px;box-shadow:var(--shadow-card)">
+    <button class="wnav-btn" data-woff="-1" style="width:36px;height:36px;background:var(--bg-2);border-radius:10px;font-weight:800;color:var(--text)">←</button>
+    <div style="text-align:center"><div style="font-weight:800;font-size:14px">${lbl}</div><div style="font-size:11px;color:var(--muted)">${formatWeekRange()}</div></div>
+    <button class="wnav-btn" data-woff="1" style="width:36px;height:36px;background:var(--bg-2);border-radius:10px;font-weight:800;color:var(--text)">→</button>
+  </div>`}
+function bindWeekNav(){document.querySelectorAll('.wnav-btn').forEach(b=>b.onclick=()=>{curWeekOff+=parseInt(b.dataset.woff);render()})}
+
 /* ============ RENDER: HOY ============ */
 function renderHoy(){
   const s=settings(),d=S()[curDayIdx],t=dayTotals(d);
@@ -401,10 +430,11 @@ function renderHoy(){
   const isFran=curUser==='fran';const name=isFran?'Fran':'Lua';
   const trainKey='train_'+logKey;const isTrain=!!lg[trainKey];
   const kpct=t.k/s.objKcal,ppct=t.p/s.objProt,cpct=t.c/s.objCarb,fpct=t.f/s.objFat;
+  const dayName=(curWeekOff===0&&curDayIdx===todayIdx())?`Hoy · ${DAYS[curDayIdx]}`:DAYS[curDayIdx];
   
-  let h=`<div class="card psum">
+  let h=weekNavHeader()+`<div class="card psum">
     <div class="avatar ${curUser}">${name[0]}</div>
-    <div class="who"><h2>Hoy · ${DAYS[curDayIdx]}</h2><p>${isTrain?'🔥 Día de entreno':'Día de descanso'}</p></div>
+    <div class="who"><h2>${dayName}</h2><p>${isTrain?'🔥 Día de entreno':'Día de descanso'}</p></div>
     <div class="train-toggle-wrap"><span>Entreno</span><div class="toggle ${isTrain?'on':''}" id="trainToggle"></div></div>
   </div>`;
 
@@ -436,6 +466,7 @@ function renderHoy(){
   if(s.weight)h+=weightCard(logKey);
 
   $('#sec-hoy').innerHTML=h;
+  bindWeekNav();
   bindHoy();
 }
 function mbar(name,color,val,obj,u){const p=Math.min(val/obj*100,100);
@@ -500,13 +531,14 @@ function renderSemana(){
   let pills=S().map((d,i)=>{const lg=DB.user[curUser].logs[weekDateKeys()[i]];const tr=lg&&lg['train_'+weekDateKeys()[i]];
     return `<button class="day-pill ${i===curDayIdx?'active':''}" data-day="${i}"><span class="ab">${DAY_AB[i]}</span><span class="num">${d.dia}</span>${tr?'<span class="tr"></span>':''}</button>`}).join('');
   const d=S()[curDayIdx],t=dayTotals(d);
-  let h=`<div class="day-pills">${pills}</div>
+  let h=weekNavHeader()+`<div class="day-pills">${pills}</div>
    <div class="card psum" style="margin-bottom:12px"><div class="who"><h2>${d.dia}</h2><p>Totales del día</p></div>
    <div style="margin-left:auto;display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end">
      <span class="chip kcal">🔥 ${Math.round(t.k)}</span><span class="chip prot">P ${Math.round(t.p)}</span><span class="chip carb">C ${Math.round(t.c)}</span><span class="chip fat">G ${Math.round(t.f)}</span></div></div>`;
   h+=mealCard('comida','🍽️','Comida',d.comida,log(weekDateKeys()[curDayIdx]));
   h+=mealCard('cena','🌙','Cena',d.cena,log(weekDateKeys()[curDayIdx]));
   $('#sec-semana').innerHTML=h;
+  bindWeekNav();
   document.querySelectorAll('[data-day]').forEach(b=>b.onclick=()=>{curDayIdx=+b.dataset.day;renderSemana()});
   document.querySelectorAll('#sec-semana [data-edit]').forEach(b=>b.onclick=()=>editMeal(curDayIdx,b.dataset.edit));
   document.querySelectorAll('#sec-semana [data-done]').forEach(b=>b.onclick=()=>{const lg=log(weekDateKeys()[curDayIdx]);lg.done=lg.done||{};lg.done[b.dataset.done]=!lg.done[b.dataset.done];save();renderSemana()});
@@ -606,6 +638,7 @@ function renderAjustes(){
       <div style="font-size:12px;color:var(--muted);margin-top:4px">Arrastra tu <b>nutri_data.json</b> o un <b>.docx</b> del dietista</div>
       <span class="pick" id="dzPick">Elegir archivo</span><input type="file" id="dzInput" accept=".json,.docx" hidden></div>
     <div style="padding:0 16px 16px;display:flex;flex-direction:column;gap:8px">
+      <button class="btn-line" id="newPlanBtn" style="color:var(--accent);border-color:var(--accent);background:rgba(79,143,247,0.1)">✨ Crear nuevo plan (Próximo lunes)</button>
       <button class="btn-line" id="exportBtn">⬇️ Exportar mis datos (JSON)</button>
       <button class="btn-line danger" id="resetBtn">🗑️ Reiniciar al plan original</button>
     </div></div>`;
@@ -626,7 +659,15 @@ function bindAjustes(){
   dz.addEventListener('drop',e=>handleFile(e.dataTransfer.files[0]));
   dzi.onchange=()=>handleFile(dzi.files[0]);
   $('#exportBtn').onclick=exportData;
+  $('#newPlanBtn').onclick=createNextWeekPlan;
   $('#resetBtn').onclick=()=>{if(confirm('¿Reiniciar el plan al original? Se mantienen tus ajustes, peso y registros.')){DB.plans=JSON.parse(JSON.stringify(SEED.plans));save();render();toast('Plan reiniciado')}};
+}
+function createNextWeekPlan(){
+  const t=new Date();t.setDate(t.getDate()-todayIdx()+7);const nextMon=t.toISOString().slice(0,10);
+  const hist=DB.plansHistory[curUser];
+  if(hist.find(x=>x.startDate===nextMon)){toast('El plan de la próxima semana ya existe');return}
+  hist.push({startDate:nextMon,plan:JSON.parse(JSON.stringify(activePlan()))});
+  hist.sort((a,b)=>a.startDate<b.startDate?-1:1);save();toast('Nuevo plan creado. ¡Ve a Semana!');
 }
 function exportData(){const blob=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='nutriplan_backup.json';a.click()}
 function handleFile(f){if(!f)return;
