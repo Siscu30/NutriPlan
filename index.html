@@ -378,8 +378,8 @@ const $=s=>document.querySelector(s);
 function esc(s){return(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2200)}
 function mealMacros(m){return{k:m.calorias||0,p:m.proteinas||0,c:m.carbohidratos||0,f:m.grasas||0}}
-function dayTotals(d){const c=mealMacros(d.comida),n=mealMacros(d.cena);const s=settings();
-  return{k:c.k+n.k+s.desayunoKcal,p:c.p+n.p+s.desayunoProt,c:c.c+n.c+s.desayunoCarb,f:c.f+n.f+s.desayunoFat}}
+function dayTotals(d){const c=mealMacros(d.comida),n=mealMacros(d.cena);
+  return{k:c.k+n.k,p:c.p+n.p,c:c.c+n.c,f:c.f+n.f}}
 
 /* ============ THEME ============ */
 function applyTheme(){const t=settings().theme;let dark=t==='dark';if(t==='auto')dark=matchMedia('(prefers-color-scheme:dark)').matches;
@@ -391,24 +391,29 @@ matchMedia('(prefers-color-scheme:dark)').addEventListener('change',()=>{if(sett
 /* ============ RING (SVG) ============ */
 function ring(pct,r,color){const c=2*Math.PI*r;const fill=Math.min(pct,1)*c;
   return `<circle cx="90" cy="90" r="${r}" fill="none" stroke="var(--track)" stroke-width="11"/>
-  <circle cx="90" cy="90" r="${r}" fill="none" stroke="${color}" stroke-width="11" stroke-linecap="round" stroke-dasharray="${fill.toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 90 90)"/>`}
-
-/* ============ RENDER: HOY ============ */
-function renderHoy(){
-  const s=settings(),d=S()[curDayIdx],t=dayTotals(d),lg=log(dateKey());
+  <circle cx="90" cy="90" r="${r}" fill="none" stroke="${color}" stroke-width="11" stroke-linecap="round" stroke-dasharray="${fill.toFixed(1)} ${c.toFixed(1)}" transforfunction renderHoy(){
+  const s=settings(),d=S()[curDayIdx],t=dayTotals(d);
+  const logKey = weekDateKeys()[curDayIdx];
+  const lg=log(logKey);
   const isFran=curUser==='fran';const name=isFran?'Fran':'Lua';
-  const trainKey='train_'+dateKey();const isTrain=!!lg[trainKey];
+  const trainKey='train_'+logKey;const isTrain=!!lg[trainKey];
   const kpct=t.k/s.objKcal,ppct=t.p/s.objProt,cpct=t.c/s.objCarb,fpct=t.f/s.objFat;
+  
   let h=`<div class="card psum">
     <div class="avatar ${curUser}">${name[0]}</div>
     <div class="who"><h2>Hoy · ${DAYS[curDayIdx]}</h2><p>${isTrain?'🔥 Día de entreno':'Día de descanso'}</p></div>
     <div class="train-toggle-wrap"><span>Entreno</span><div class="toggle ${isTrain?'on':''}" id="trainToggle"></div></div>
   </div>`;
 
+  let pills=S().map((dy,i)=>{const lg2=DB.user[curUser].logs[weekDateKeys()[i]];const tr=lg2&&lg2['train_'+weekDateKeys()[i]];
+    return `<button class="day-pill ${i===curDayIdx?'active':''}" data-day="${i}"><span class="ab">${DAY_AB[i]}</span><span class="num">${dy.dia}</span>${tr?'<span class="tr"></span>':''}</button>`}).join('');
+  
+  h+=`<div class="day-pills">${pills}</div>`;
+
   h+=`<div class="card ring-card">
-    <div class="ring-wrap"><svg viewBox="0 0 180 180" width="132" height="132">
+    <div class="ring-wrap"><svg viewBox="0 0 180 180" width="136" height="136">
       ${ring(ppct,54,'var(--prot)')}${ring(cpct,42,'var(--carb)')}${ring(fpct,30,'var(--fat)')}
-    </svg><div class="ring-center"><div class="big" style="color:var(--kcal)">${Math.round(t.k)}</div><div class="sub">de ${s.objKcal} kcal</div></div></div>
+    </svg><div class="ring-center"><div class="big" style="color:var(--kcal);font-size:24px">${Math.round(t.k)}</div><div class="sub" style="font-size:10px">/ ${s.objKcal} kcal</div></div></div>
     <div class="macro-bars">
       ${mbar('Proteína','var(--prot)',t.p,s.objProt,'g')}
       ${mbar('Carbos','var(--carb)',t.c,s.objCarb,'g')}
@@ -416,10 +421,8 @@ function renderHoy(){
     </div></div>`;
 
   // meals
-  h+=`<div class="card meal" data-type="desayuno"><div class="meal-head"><div class="meal-ico">🌅</div><div class="label">Desayuno fijo</div></div><div class="fixed-note">${esc(DB.plans[curUser].desayunoFijo)}</div></div>`;
   h+=mealCard('comida','🍽️','Comida',d.comida,lg);
   h+=mealCard('cena','🌙','Cena',d.cena,lg);
-  if(DB.plans[curUser].meriendasFijas) h+=`<div class="card meal" data-type="merienda"><div class="meal-head"><div class="meal-ico">🍎</div><div class="label">Merienda</div></div><div class="fixed-note">${esc(DB.plans[curUser].meriendasFijas)}</div></div>`;
 
   // trackers
   if(s.water||s.steps){h+='<div class="trackers">';
@@ -427,7 +430,11 @@ function renderHoy(){
     if(s.steps)h+=stepsTracker(lg);
     h+='</div>'}
 
-  if(s.weight)h+=weightCard();
+  if(s.weight)h+=weightCard(logKey);
+
+  $('#sec-hoy').innerHTML=h;
+  bindHoy();
+}tCard();
   if(s.adherence)h+=adherenceCard();
 
   $('#sec-hoy').innerHTML=h;
@@ -446,14 +453,27 @@ function mealCard(type,ico,label,m,lg){const mm=mealMacros(m);const done=!!(lg.d
     <div class="meal-macros">${macros}</div>
     <button class="edit-btn" data-edit="${type}">✏️ Editar</button>
   </div>`}
-function waterTracker(lg){const goal=8;let g='';for(let i=0;i<goal;i++)g+=`<div class="glass ${i<lg.water?'f':''}" data-water="${i}"></div>`;
-  return `<div class="card tw water"><div class="h"><div class="ic">💧</div>Agua<small>${lg.water}/${goal}</small></div><div class="glasses">${g}</div></div>`}
-function stepsTracker(lg){const goal=8000;const p=Math.min(lg.steps/goal*100,100);
-  return `<div class="card tw steps"><div class="h"><div class="ic">👟</div>Pasos<small>${(lg.steps||0).toLocaleString('es')}</small></div>
-    <div class="steps-row"><input class="steps-in" id="stepsIn" type="number" value="${lg.steps||0}"><button class="steps-btn" id="stepsAdd">＋</button></div>
-    <div class="pbar"><div class="f" style="width:${p}%"></div></div>
-    <div class="steps-src">📱 Sincroniza con el Atajo de iPhone (Ajustes)</div></div>`}
-function weightCard(){const w=DB.user[curUser].weights;const last=w[w.length-1];const first=w[0];
+function waterTracker(lg){const goal=8;const p=Math.min((lg.water||0)/goal,1);
+  return `<div class="card tw water"><div class="h"><div class="ic">💧</div>Agua<small>${lg.water||0}/${goal}</small></div>
+    <div style="display:flex;align-items:center;gap:12px;margin-top:4px">
+      <div class="ring-wrap" style="width:64px;height:64px"><svg viewBox="0 0 180 180" width="64" height="64">${ring(p,70,'#3b82f6')}</svg>
+      <div class="ring-center"><div style="font-size:16px;font-weight:800;color:#3b82f6">${lg.water||0}</div></div></div>
+      <div style="display:flex;flex-direction:column;gap:6px;flex:1">
+        <button class="steps-btn" id="waterAdd" style="width:100%;background:rgba(59,130,246,.15);color:#3b82f6">＋ Vaso</button>
+        <button class="steps-btn" id="waterSub" style="width:100%;background:var(--bg-2);color:var(--muted)">－</button>
+      </div>
+    </div></div>`}
+function stepsTracker(lg){const goal=8000;const p=Math.min((lg.steps||0)/goal,1);
+  return `<div class="card tw steps"><div class="h"><div class="ic">👟</div>Pasos</div>
+    <div style="display:flex;align-items:center;gap:12px;margin-top:4px">
+      <div class="ring-wrap" style="width:64px;height:64px"><svg viewBox="0 0 180 180" width="64" height="64">${ring(p,70,'#22c55e')}</svg>
+      <div class="ring-center"><div style="font-size:13px;font-weight:800;color:#22c55e">${Math.round((lg.steps||0)/1000)}k</div></div></div>
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px">
+        <div class="steps-row" style="margin:0"><input class="steps-in" id="stepsIn" type="number" value="${lg.steps||0}" style="font-size:14px;padding:6px 8px"><button class="steps-btn" id="stepsAdd">＋</button></div>
+        <div class="steps-src" style="line-height:1.2;margin:0">📱 Atajo de iPhone</div>
+      </div>
+    </div></div>`}
+function weightCard(logKey){const w=DB.user[curUser].weights;const last=w[w.length-1];const first=w[0];
   let delta='',dcls='flat';if(w.length>1){const diff=last.kg-first.kg;dcls=diff<-0.05?'down':diff>0.05?'up':'flat';delta=(diff>0?'+':'')+diff.toFixed(1)+' kg'}
   let spark='';if(w.length>1){const xs=w.length-1;const ks=w.map(x=>x.kg);const mn=Math.min(...ks),mx=Math.max(...ks),rg=(mx-mn)||1;
     const pts=w.map((x,i)=>`${(i/xs*136+2).toFixed(1)},${(56-(x.kg-mn)/rg*48).toFixed(1)}`).join(' ');
@@ -462,19 +482,19 @@ function weightCard(){const w=DB.user[curUser].weights;const last=w[w.length-1];
   return `<div class="card weight-card"><div class="weight-head"><div class="now">${last?last.kg.toFixed(1):'--'}<small> kg</small></div>
     ${delta?`<div class="weight-delta ${dcls}">${delta}</div>`:''}</div>${spark}
     <div class="weight-add"><input id="weightIn" type="number" step="0.1" placeholder="Peso de hoy (kg)"><button id="weightAdd">Guardar</button></div></div>`}
-function adherenceCard(){const keys=weekDateKeys();const u=DB.user[curUser];let done=0;
-  const cells=keys.map((k,i)=>{const l=u.logs[k];const c=l&&l.done&&l.done.comida,n=l&&l.done&&l.done.cena;
-    let cls='';if(c&&n){cls='done';done++}else if(c||n)cls='partial';
-    const today=i===curDayIdx?'today':'';return `<div class="adh-day ${cls} ${today}">${DAY_AB[i][0]}</div>`}).join('');
-  return `<div class="card adh-card"><div class="adh-head"><div class="t">Adherencia semanal</div><div class="v">${done}/7</div></div><div class="adh-strip">${cells}</div></div>`}
 
 function bindHoy(){
-  const tt=$('#trainToggle');if(tt)tt.onclick=()=>{const lg=log(dateKey());const k='train_'+dateKey();lg[k]=!lg[k];save();renderHoy()};
-  document.querySelectorAll('[data-done]').forEach(b=>b.onclick=()=>{const lg=log(dateKey());lg.done=lg.done||{};lg.done[b.dataset.done]=!lg.done[b.dataset.done];if(lg.done[b.dataset.done]){navigator.vibrate&&navigator.vibrate(15)}save();renderHoy()});
+  const logKey = weekDateKeys()[curDayIdx];
+  const tt=$('#trainToggle');if(tt)tt.onclick=()=>{const lg=log(logKey);const k='train_'+logKey;lg[k]=!lg[k];save();renderHoy()};
+  document.querySelectorAll('[data-done]').forEach(b=>b.onclick=()=>{const lg=log(logKey);lg.done=lg.done||{};lg.done[b.dataset.done]=!lg.done[b.dataset.done];if(lg.done[b.dataset.done]){navigator.vibrate&&navigator.vibrate(15)}save();renderHoy()});
   document.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>editMeal(curDayIdx,b.dataset.edit));
-  document.querySelectorAll('[data-water]').forEach(g=>g.onclick=()=>{const lg=log(dateKey());const i=+g.dataset.water;lg.water=(i+1===lg.water)?i:i+1;if(lg.water===8)navigator.vibrate&&navigator.vibrate([10,40,10]);save();renderHoy()});
-  const si=$('#stepsIn'),sa=$('#stepsAdd');if(sa)sa.onclick=()=>{const lg=log(dateKey());lg.steps=parseInt(si.value)||0;save();renderHoy();toast('Pasos guardados')};
-  const wa=$('#weightAdd'),wi=$('#weightIn');if(wa)wa.onclick=()=>{const v=parseFloat(wi.value);if(!v)return;const w=DB.user[curUser].weights;const dk=dateKey();const ex=w.find(x=>x.date===dk);if(ex)ex.kg=v;else w.push({date:dk,kg:v});w.sort((a,b)=>a.date<b.date?-1:1);save();renderHoy();toast('Peso registrado')}
+  const waAdd=$('#waterAdd'),waSub=$('#waterSub');
+  if(waAdd)waAdd.onclick=()=>{const lg=log(logKey);lg.water=Math.min(8,(lg.water||0)+1);if(lg.water===8)navigator.vibrate&&navigator.vibrate([10,40,10]);save();renderHoy()};
+  if(waSub)waSub.onclick=()=>{const lg=log(logKey);lg.water=Math.max(0,(lg.water||0)-1);save();renderHoy()};
+  const si=$('#stepsIn'),sa=$('#stepsAdd');if(sa)sa.onclick=()=>{const lg=log(logKey);lg.steps=parseInt(si.value)||0;save();renderHoy();toast('Pasos guardados')};
+  const wa=$('#weightAdd'),wi=$('#weightIn');if(wa)wa.onclick=()=>{const v=parseFloat(wi.value);if(!v)return;const w=DB.user[curUser].weights;const ex=w.find(x=>x.date===logKey);if(ex)ex.kg=v;else w.push({date:logKey,kg:v});w.sort((a,b)=>a.date<b.date?-1:1);save();renderHoy();toast('Peso registrado')}
+
+  document.querySelectorAll('#sec-hoy [data-day]').forEach(b=>b.onclick=()=>{curDayIdx=+b.dataset.day;renderHoy()});
 }
 
 /* ============ RENDER: SEMANA ============ */
@@ -483,10 +503,9 @@ function renderSemana(){
     return `<button class="day-pill ${i===curDayIdx?'active':''}" data-day="${i}"><span class="ab">${DAY_AB[i]}</span><span class="num">${d.dia}</span>${tr?'<span class="tr"></span>':''}</button>`}).join('');
   const d=S()[curDayIdx],t=dayTotals(d);
   let h=`<div class="day-pills">${pills}</div>
-   <div class="card psum" style="margin-bottom:12px"><div class="who"><h2>${d.dia}</h2><p>Totales del día (con desayuno estimado)</p></div>
+   <div class="card psum" style="margin-bottom:12px"><div class="who"><h2>${d.dia}</h2><p>Totales del día</p></div>
    <div style="margin-left:auto;display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end">
      <span class="chip kcal">🔥 ${Math.round(t.k)}</span><span class="chip prot">P ${Math.round(t.p)}</span><span class="chip carb">C ${Math.round(t.c)}</span><span class="chip fat">G ${Math.round(t.f)}</span></div></div>`;
-  h+=`<div class="card meal" data-type="desayuno"><div class="meal-head"><div class="meal-ico">🌅</div><div class="label">Desayuno fijo</div></div><div class="fixed-note">${esc(DB.plans[curUser].desayunoFijo)}</div></div>`;
   h+=mealCard('comida','🍽️','Comida',d.comida,log(weekDateKeys()[curDayIdx]));
   h+=mealCard('cena','🌙','Cena',d.cena,log(weekDateKeys()[curDayIdx]));
   $('#sec-semana').innerHTML=h;
@@ -555,7 +574,6 @@ function renderAjustes(){
     ${setRow('💧','Agua','Vasos de agua del día',tg('water',s.water,1))}
     ${setRow('👟','Pasos','Contador de pasos diario',tg('steps',s.steps,1))}
     ${setRow('🛒','Lista de la compra','Generar lista desde el plan',tg('shopping',s.shopping,1))}
-    ${setRow('📈','Adherencia','Cumplimiento semanal del plan',tg('adherence',s.adherence,1))}
   </div>`;
 
   h+=`<div class="section-title">Objetivos diarios</div>
@@ -564,13 +582,6 @@ function renderAjustes(){
     <div class="obj-field"><label>Proteína (g)</label><input type="number" data-obj="objProt" value="${s.objProt}"></div>
     <div class="obj-field"><label>Carbos (g)</label><input type="number" data-obj="objCarb" value="${s.objCarb}"></div>
     <div class="obj-field"><label>Grasa (g)</label><input type="number" data-obj="objFat" value="${s.objFat}"></div>
-  </div>
-  <div class="set-row" style="border-top:1px solid var(--border)"><div class="ic">🌅</div><div class="tx"><div class="t">Desayuno estimado</div><div class="d">Macros fijos que suma el anillo</div></div></div>
-  <div class="obj-grid" style="padding-top:0">
-    <div class="obj-field"><label>Kcal</label><input type="number" data-obj="desayunoKcal" value="${s.desayunoKcal}"></div>
-    <div class="obj-field"><label>Prot</label><input type="number" data-obj="desayunoProt" value="${s.desayunoProt}"></div>
-    <div class="obj-field"><label>Carb</label><input type="number" data-obj="desayunoCarb" value="${s.desayunoCarb}"></div>
-    <div class="obj-field"><label>Grasa</label><input type="number" data-obj="desayunoFat" value="${s.desayunoFat}"></div>
   </div></div>`;
 
   h+=`<div class="section-title">Apariencia</div>
