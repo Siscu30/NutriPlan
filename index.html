@@ -391,7 +391,7 @@ function load(){try{const r=localStorage.getItem('nutriplan_db');if(r){const p=J
 
 /* ============ SYNC (Supabase) — pega tus 2 datos aquí ============ */
 const SUPABASE_URL='https://swcxredmjvrwaragmghm.supabase.co';   /* <-- aquí tu Project URL (https://xxxx.supabase.co) */
-const SUPABASE_KEY='sb_publishable_DReL4Tg1KueHIVK0hIojtg_IUdWvZoF';   /* <-- aquí tu anon public key */
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN3Y3hyZWRtanZyd2FyYWdtZ2htIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwNDM0MTgsImV4cCI6MjA5NTYxOTQxOH0.Dml8UUtOARaBpb1z0_bjSAYvtKhKmJxDi6nyCC-9dyg';   /* <-- aquí tu anon public key */
 let sb=null,_pushT=null,_applying=false;
 function syncOn(){return SUPABASE_URL&&SUPABASE_KEY&&window.supabase}
 function initSync(){if(!syncOn())return;
