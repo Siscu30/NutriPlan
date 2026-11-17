@@ -94,7 +94,10 @@ export function startSync(view: PersonId[]) {
       const id = (payload.new as { id?: string })?.id
       if (!id) return
       try {
-        apply(await fetchDocs([id]))
+        const docs = await fetchDocs([id])
+        apply(docs)
+        // Si al unir pesajes y medidas quedó algo que la nube no tiene, se sube
+        for (const d of docs) if (d.kind === 'person' && getState().people[d.person].updatedAt > d.doc.updatedAt) schedule(`person:${d.person}`)
       } catch {
         /* se recupera en la siguiente lectura completa */
       }

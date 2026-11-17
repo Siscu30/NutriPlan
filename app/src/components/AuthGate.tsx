@@ -5,6 +5,7 @@ import { changePassword, refreshProfile, requestAccess, sendRecovery, signIn, si
 import { actions, getState } from '../lib/store'
 import { startSync, stopSync } from '../lib/sync'
 import { linkError, supabase } from '../lib/supabase'
+import { DEMO } from '../lib/demo'
 import { Press, spring } from './ui'
 
 /** Solo deja pasar a usuarios aprobados; muestra el resto de pantallas de acceso */
@@ -15,6 +16,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const view = p?.can_view.join(',') ?? ''
 
   useEffect(() => {
+    if (DEMO) return
     if (!approved || !p) {
       // Pantallas de acceso con el color por defecto
       delete document.documentElement.dataset.person
@@ -39,7 +41,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   else if (p.status === 'rejected') [screen, key] = [<Problem icon={<ShieldX className="size-7" />} text="El administrador no ha aprobado este acceso." />, 'rejected']
   else if (p.can_view.length === 0) [screen, key] = [<Problem text="Tu acceso está aprobado, pero aún no tienes ningún plan asignado. Pídeselo al administrador." />, 'noplans']
 
-  if (approved && p.can_view.length > 0) return <>{children}</>
+  if (DEMO || (approved && p.can_view.length > 0)) return <>{children}</>
   return (
     <div className="pt-safe flex min-h-dvh items-center justify-center px-5 py-10">
       <AnimatePresence mode="wait">

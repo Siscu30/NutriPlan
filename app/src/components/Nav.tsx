@@ -1,16 +1,18 @@
 import { AnimatePresence, motion } from 'motion/react'
-import { CalendarDays, ChefHat, Sun, Utensils, type LucideIcon } from 'lucide-react'
+import { CalendarDays, ChefHat, PersonStanding, Sun, Utensils, type LucideIcon } from 'lucide-react'
 import { useRef, useEffect } from 'react'
 import type { PersonId } from '../data/types'
 import { actions, useStore } from '../lib/store'
 import { useAuth } from '../lib/auth'
+import { DEMO } from '../lib/demo'
 import { DAY_SHORT, addDays, dayNum, longDate, mondayOf, today } from '../lib/dates'
 import { Press, spring } from './ui'
 
-export type Tab = 'hoy' | 'semana' | 'recetas' | 'guia'
+export type Tab = 'hoy' | 'semana' | 'cuerpo' | 'recetas' | 'guia'
 const TABS: { id: Tab; label: string; icon: LucideIcon }[] = [
   { id: 'hoy', label: 'Hoy', icon: Sun },
   { id: 'semana', label: 'Semana', icon: CalendarDays },
+  { id: 'cuerpo', label: 'Cuerpo', icon: PersonStanding },
   { id: 'recetas', label: 'Recetas', icon: ChefHat },
   { id: 'guia', label: 'Guía', icon: Utensils },
 ]
@@ -45,7 +47,7 @@ export function TabBar({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void
               onClick={() => onChange(t.id)}
               aria-current={active ? 'page' : undefined}
               aria-label={t.label}
-              className={`relative flex h-12 items-center gap-2 rounded-[22px] px-4 ${active ? 'text-on-accent' : 'text-muted'}`}
+              className={`relative flex h-12 items-center gap-2 rounded-[22px] px-3.5 ${active ? 'text-on-accent' : 'text-muted'}`}
             >
               {active && (
                 <motion.span layoutId="tab-pill" transition={spring} className="absolute inset-0 rounded-[22px] bg-accent" />
@@ -109,7 +111,7 @@ export function PersonSwitch() {
   const person = useStore((s) => s.person)
   const names = useStore((s) => s.shared.names)
   const { profile } = useAuth()
-  const ids = (['fran', 'lua'] as PersonId[]).filter((id) => profile?.can_view.includes(id))
+  const ids = (['fran', 'lua'] as PersonId[]).filter((id) => DEMO || profile?.can_view.includes(id))
   if (ids.length < 2) return null
   return (
     <div role="radiogroup" aria-label="Plan de" className="flex rounded-full border border-line bg-surface p-1">

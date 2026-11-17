@@ -108,14 +108,31 @@ end $$;
 insert into storage.buckets (id, name, public) values ('plato-media', 'plato-media', false)
 on conflict (id) do update set public = false;
 
+-- Carpetas:
+--   img/…, pages/…        fotos de recetas y páginas de los planes (las sube el admin, las ve cualquier aprobado)
+--   body/<persona>/…      capturas de la báscula (solo quien puede ver el plan de esa persona)
+create or replace function public.plato_media_ok(object_name text, writing boolean) returns boolean
+language sql stable security definer set search_path = public as $$
+  select case
+    when (storage.foldername(object_name))[1] = 'body'
+      then (storage.foldername(object_name))[2] in ('fran', 'lua') and plato_can_view((storage.foldername(object_name))[2])
+    else (case when writing then plato_is_admin() else plato_can_view(null) end)
+  end
+$$;
+
 drop policy if exists plato_media_read on storage.objects;
 create policy plato_media_read on storage.objects for select to authenticated
-  using (bucket_id = 'plato-media' and public.plato_can_view(null));
+  using (bucket_id = 'plato-media' and public.plato_media_ok(name, false));
 
 drop policy if exists plato_media_insert on storage.objects;
 create policy plato_media_insert on storage.objects for insert to authenticated
-  with check (bucket_id = 'plato-media' and public.plato_is_admin());
+  with check (bucket_id = 'plato-media' and public.plato_media_ok(name, true));
 
 drop policy if exists plato_media_update on storage.objects;
 create policy plato_media_update on storage.objects for update to authenticated
-  using (bucket_id = 'plato-media' and public.plato_is_admin());
+  using (bucket_id = 'plato-media' and public.plato_media_ok(name, true))
+  with check (bucket_id = 'plato-media' and public.plato_media_ok(name, true));
+
+drop policy if exists plato_media_delete on storage.objects;
+create policy plato_media_delete on storage.objects for delete to authenticated
+  using (bucket_id = 'plato-media' and (storage.foldername(name))[1] = 'body' and public.plato_media_ok(name, true));

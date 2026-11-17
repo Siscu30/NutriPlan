@@ -8,13 +8,14 @@ import { Settings } from './components/Settings'
 import type { SlotMeal } from './data/types'
 import { today } from './lib/dates'
 import { useStore } from './lib/store'
+import { Cuerpo } from './screens/Cuerpo'
 import { Guia } from './screens/Guia'
 import { Hoy } from './screens/Hoy'
 import { Recetas } from './screens/Recetas'
 import { Semana } from './screens/Semana'
 
 const ImportSheet = lazy(() => import('./components/ImportSheet'))
-const ORDER: Tab[] = ['hoy', 'semana', 'recetas', 'guia']
+const ORDER: Tab[] = ['hoy', 'semana', 'cuerpo', 'recetas', 'guia']
 const THEME = { fran: '#2b1531', lua: '#0d3f3c' }
 
 export default function App() {
@@ -64,6 +65,7 @@ export default function App() {
                     }}
                   />
                 )}
+                {tab === 'cuerpo' && <Cuerpo />}
                 {tab === 'recetas' && <Recetas date={date} openRecipe={(planId, id) => setSheet({ kind: 'recipe', planId, id })} />}
                 {tab === 'guia' && <Guia date={date} />}
               </motion.div>

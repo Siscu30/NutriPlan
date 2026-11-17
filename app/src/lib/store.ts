@@ -2,6 +2,7 @@ import { useSyncExternalStore } from 'react'
 import { BASE_FOODS, type Food } from '../data/foods'
 import { HOUSE_BREAKFAST, SEED_PLANS } from '../data/seed'
 import type { DayPlan, Ing, PersonId, PlanDoc, PlanRecipe, SlotMeal } from '../data/types'
+import { mergeById, type MeasureEntry, type WeighIn } from '../data/body'
 import { dayIndex, mondayOf, weekNumber } from './dates'
 import { idbGet, idbSet } from './idb'
 
@@ -20,6 +21,9 @@ export interface PersonDoc {
   recipeEdits: Record<string, Ing[]>
   /** true = desayuno de casa (2 tostadas); false = el del plan */
   houseBreakfast: boolean
+  /** Pesajes de la báscula y medidas con cinta (se fusionan entrada a entrada) */
+  weighIns: WeighIn[]
+  measures: MeasureEntry[]
   updatedAt: number
 }
 
@@ -45,7 +49,7 @@ export interface State {
 }
 
 const KEY = 'plato.v2'
-const emptyPerson = (): PersonDoc => ({ overrides: {}, done: {}, recipeEdits: {}, houseBreakfast: true, updatedAt: 0 })
+const emptyPerson = (): PersonDoc => ({ overrides: {}, done: {}, recipeEdits: {}, houseBreakfast: true, weighIns: [], measures: [], updatedAt: 0 })
 const DEFAULT: State = {
   person: 'fran',
   apiKey: '',
@@ -293,7 +297,13 @@ export const actions = {
     if (plan.source === 'seed') shared((d) => ({ planMeta: { ...d.planMeta, [plan.id]: { ...d.planMeta[plan.id], deleted: true } } }))
     else actions.savePlan({ ...plan, deleted: true, recipes: [], pages: [], guide: [] })
   },
-  resetPerson: (p: PersonId) => person(p, (d) => ({ ...emptyPerson(), houseBreakfast: d.houseBreakfast })),
+  resetPerson: (p: PersonId) => person(p, (d) => ({ ...emptyPerson(), houseBreakfast: d.houseBreakfast, weighIns: d.weighIns, measures: d.measures })),
+  saveWeighIn: (p: PersonId, w: WeighIn) => person(p, (d) => ({ weighIns: mergeById(d.weighIns, [{ ...w, updatedAt: now() }]) })),
+  deleteWeighIn: (p: PersonId, id: string) =>
+    person(p, (d) => ({ weighIns: d.weighIns.map((w) => (w.id === id ? { ...w, deleted: true, v: {}, photo: undefined, updatedAt: now() } : w)) })),
+  saveMeasure: (p: PersonId, m: MeasureEntry) => person(p, (d) => ({ measures: mergeById(d.measures, [{ ...m, updatedAt: now() }]) })),
+  deleteMeasure: (p: PersonId, id: string) =>
+    person(p, (d) => ({ measures: d.measures.map((m) => (m.id === id ? { ...m, deleted: true, v: {}, updatedAt: now() } : m)) })),
   // ── aplicar datos llegados de la nube ──
   applyRemote(r: { shared?: SharedDoc; people?: Partial<Record<PersonId, PersonDoc>>; plans?: PlanDoc[] }) {
     setState((s) => {
@@ -301,7 +311,17 @@ export const actions = {
       if (r.shared && r.shared.updatedAt > s.shared.updatedAt) next = { ...next, shared: { ...DEFAULT.shared, ...r.shared } }
       for (const p of ['fran', 'lua'] as PersonId[]) {
         const d = r.people?.[p]
-        if (d && d.updatedAt > next.people[p].updatedAt) next = { ...next, people: { ...next.people, [p]: { ...emptyPerson(), ...d } } }
+        if (!d) continue
+        const local = next.people[p]
+        const base = d.updatedAt > local.updatedAt ? { ...emptyPerson(), ...d } : local
+        // Pesajes y medidas: nunca se pisan, se unen por entrada
+        const weighIns = mergeById(local.weighIns, d.weighIns ?? [])
+        const measures = mergeById(local.measures, d.measures ?? [])
+        const remoteHasAll = JSON.stringify([weighIns, measures]) === JSON.stringify([mergeById([], d.weighIns ?? []), mergeById([], d.measures ?? [])])
+        // Si aquí hay entradas que la nube no tiene, se marca como más reciente para que se suban
+        const updatedAt = remoteHasAll ? base.updatedAt : Math.max(local.updatedAt, d.updatedAt) + 1
+        if (base !== local || updatedAt !== local.updatedAt || JSON.stringify([weighIns, measures]) !== JSON.stringify([local.weighIns, local.measures]))
+          next = { ...next, people: { ...next.people, [p]: { ...base, weighIns, measures, updatedAt } } }
       }
       for (const plan of r.plans ?? []) {
         const cur = next.plans[plan.id]
