@@ -78,7 +78,7 @@ export function SideRail({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => vo
   return (
     <nav aria-label="Secciones" className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col gap-1 border-r border-line px-4 py-8 md:flex">
       <div className="mb-8 flex items-center gap-3 px-3">
-        <img src="/favicon.svg" alt="" className="size-9 rounded-xl" />
+        <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" className="size-9 rounded-xl" />
         <span className="display text-2xl font-semibold">Plato</span>
       </div>
       {TABS.map((t) => {

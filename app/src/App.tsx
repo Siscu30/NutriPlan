@@ -15,7 +15,7 @@ import { Semana } from './screens/Semana'
 
 const ImportSheet = lazy(() => import('./components/ImportSheet'))
 const ORDER: Tab[] = ['hoy', 'semana', 'recetas', 'guia']
-const THEME = { fran: '#102c24', lua: '#2b1531' }
+const THEME = { fran: '#2b1531', lua: '#0d3f3c' }
 
 export default function App() {
   const person = useStore((s) => s.person)

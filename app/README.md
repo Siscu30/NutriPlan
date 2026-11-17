@@ -1,32 +1,37 @@
-# React + TypeScript + Vite
+# Plato
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+App de nutrición para Francisco y Lua: el plan de la nutricionista día a día, con fotos, pasos y macros.
 
-Currently, two official plugins are available:
+## Desarrollo
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+## Publicación (GitHub Pages)
+
+La publica automáticamente `.github/workflows/deploy.yml` cada vez que se sube a `main` algún cambio en `app/`.
+Queda en `https://<usuario>.github.io/<repositorio>/`.
+
+Una sola vez, en GitHub: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
+
+Para probar la versión publicada en local:
+
+```bash
+npm run build
+npm run preview
+```
+
+y abrir `http://localhost:4173/NutriPlan/`.
+
+## Instalar en el iPhone
+
+Abrir la dirección en Safari → botón Compartir → **Añadir a pantalla de inicio**.
+
+## Sincronización (opcional)
+
+1. Crear un proyecto gratuito en supabase.com.
+2. Ejecutar `supabase/plato.sql` en el SQL Editor.
+3. En la app: Planes y ajustes → Sincronización → pegar URL y clave anon → Crear código → Conectar.
+4. Compartir el enlace de vinculación con el otro dispositivo.

@@ -1,68 +1,69 @@
 @import 'tailwindcss';
 
-/* Paleta "Huerta": verde botella, remolacha (proteína), calabaza (hidratos), aceite (grasa), brote (verdura) */
+/* Colores de macros: remolacha (proteína), calabaza (hidratos), aceite (grasa), brote (verdura).
+   Fondo por persona: Francisco morado berenjena, Lua aguamarina oscuro. */
 :root {
-  --bg: #eef2ea;
-  --surface: #ffffff;
-  --surface-2: #e3eadf;
-  --line: rgb(18 48 42 / 0.1);
-  --ink: #12302a;
-  --muted: #5b6e63;
-  --prot: #c2366b;
-  --carb: #c47a10;
-  --fat: #8a8a1c;
-  --veg: #4f8a3a;
-  --accent: #12302a;
-  --on-accent: #f1eedd;
-  --glass: rgb(255 255 255 / 0.72);
-  --shadow: 0 1px 0 rgb(18 48 42 / 0.04), 0 12px 32px -12px rgb(18 48 42 / 0.25);
-  color-scheme: light;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #102c24;
-    --surface: #173a30;
-    --surface-2: #1f493c;
-    --line: rgb(241 238 221 / 0.1);
-    --ink: #f1eedd;
-    --muted: #a3b5a6;
-    --prot: #ec5f8c;
-    --carb: #f0aa45;
-    --fat: #d6cd62;
-    --veg: #92c873;
-    --accent: #f1eedd;
-    --on-accent: #102c24;
-    --glass: rgb(23 58 48 / 0.72);
-    --shadow: 0 1px 0 rgb(0 0 0 / 0.2), 0 16px 40px -16px rgb(0 0 0 / 0.6);
-    color-scheme: dark;
-  }
-}
-
-/* Lua: berenjena — fondo distinto para saber de un vistazo de quién es el plan */
-:root[data-person='lua'] {
   --bg: #f6ecf2;
   --surface: #ffffff;
   --surface-2: #eedce7;
   --line: rgb(58 24 56 / 0.1);
   --ink: #3a1838;
   --muted: #7a5f74;
+  --prot: #c2366b;
+  --carb: #c47a10;
+  --fat: #8a8a1c;
+  --veg: #4f8a3a;
   --accent: #3a1838;
   --on-accent: #fbeff6;
   --glass: rgb(255 255 255 / 0.72);
   --shadow: 0 1px 0 rgb(58 24 56 / 0.04), 0 12px 32px -12px rgb(58 24 56 / 0.28);
+  color-scheme: light;
 }
+
 @media (prefers-color-scheme: dark) {
-  :root[data-person='lua'] {
+  :root {
     --bg: #2b1531;
     --surface: #3b2043;
     --surface-2: #4b2a54;
     --line: rgb(251 239 246 / 0.1);
     --ink: #fbeff6;
     --muted: #c9aec2;
+    --prot: #ec5f8c;
+    --carb: #f0aa45;
+    --fat: #d6cd62;
+    --veg: #92c873;
     --accent: #fbeff6;
     --on-accent: #2b1531;
     --glass: rgb(59 32 67 / 0.72);
+    --shadow: 0 1px 0 rgb(0 0 0 / 0.2), 0 16px 40px -16px rgb(0 0 0 / 0.6);
+    color-scheme: dark;
+  }
+}
+
+/* Lua: aguamarina oscuro */
+:root[data-person='lua'] {
+  --bg: #e3f3f0;
+  --surface: #ffffff;
+  --surface-2: #cce8e2;
+  --line: rgb(11 61 57 / 0.12);
+  --ink: #0b3d39;
+  --muted: #4f7671;
+  --accent: #0b3d39;
+  --on-accent: #e8faf6;
+  --glass: rgb(255 255 255 / 0.72);
+  --shadow: 0 1px 0 rgb(11 61 57 / 0.04), 0 12px 32px -12px rgb(11 61 57 / 0.28);
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-person='lua'] {
+    --bg: #0d3f3c;
+    --surface: #13524e;
+    --surface-2: #1a6560;
+    --line: rgb(232 250 246 / 0.1);
+    --ink: #e8faf6;
+    --muted: #9cc9c1;
+    --accent: #e8faf6;
+    --on-accent: #0d3f3c;
+    --glass: rgb(19 82 78 / 0.72);
     --shadow: 0 1px 0 rgb(0 0 0 / 0.2), 0 16px 40px -16px rgb(0 0 0 / 0.6);
   }
 }

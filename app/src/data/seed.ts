@@ -5,14 +5,17 @@ import { MERIENDA_ROTATION, MENU_NOTES, WEEK_MENUS } from './plan'
 import { RECIPES } from './recipes'
 import type { GuideSection, PersonId, PlanDoc, PlanRecipe } from './types'
 
+/** Ruta de un archivo de public/ respetando la base de publicación */
+export const asset = (p: string) => `${import.meta.env.BASE_URL}${p}`
+
 type Media = Record<PersonId, { pages: number; img: Record<string, number | null> }>
 const M = media as Media
 
 const imgOf = (p: PersonId, id: string) => {
-  if (id in M[p].img) return M[p].img[id] === null ? `/img/lua/${id}.jpg` : `/img/${p}/${id}.jpg`
+  if (id in M[p].img) return asset(M[p].img[id] === null ? `img/lua/${id}.jpg` : `img/${p}/${id}.jpg`)
   return undefined
 }
-const page = (p: PersonId, n: number) => `/pages/${p}/${n}.jpg`
+const page = (p: PersonId, n: number) => asset(`pages/${p}/${n}.jpg`)
 const pageOf = (p: PersonId, id: string) => {
   const n = M[p].img[id]
   if (n) return page(p, n)
@@ -27,7 +30,7 @@ export const HOUSE_BREAKFAST: Record<PersonId, PlanRecipe> = {
     id: 'tostadas-casa',
     name: 'Dos tostadas: huevo con cottage y jamón',
     meal: ['desayuno'],
-    img: '/img/fran/tostadas-casa.jpg',
+    img: asset('img/fran/tostadas-casa.jpg'),
     ing: [
       { f: 'pan-integral', g: 60, t: '2 rebanadas (50-60 g de pan según la guía)' },
       { f: 'huevo', g: 55, t: 'Tostada 1: a la plancha' },
@@ -47,7 +50,7 @@ export const HOUSE_BREAKFAST: Record<PersonId, PlanRecipe> = {
     id: 'tostadas-casa',
     name: 'Dos tostadas: huevo con aguacate y jamón',
     meal: ['desayuno'],
-    img: '/img/lua/tostadas-casa.jpg',
+    img: asset('img/lua/tostadas-casa.jpg'),
     ing: [
       { f: 'pan-integral', g: 50, t: '2 rebanadas' },
       { f: 'huevo', g: 55, t: 'Tostada 1: a la plancha' },
@@ -71,7 +74,7 @@ function guideFor(p: PersonId): GuideSection[] {
       : { plato: [1], montar: [2], grasas: [2], equivalencias: [3], preentreno: [26, 27] }
   return GUIDE.map((s) => ({
     ...s,
-    img: s.id === 'plato' ? '/img/fran/guia-plato.jpg' : undefined,
+    img: s.id === 'plato' ? asset('img/fran/guia-plato.jpg') : undefined,
     pages: (pages[s.id] ?? []).map((n) => page(p, n)),
   }))
 }
