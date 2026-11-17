@@ -1,6 +1,7 @@
 import { animate, motion, useMotionValue, useTransform, type HTMLMotionProps } from 'motion/react'
 import { useEffect } from 'react'
 import type { Macros } from '../lib/store'
+import { useMedia } from '../lib/media'
 
 export const spring = { type: 'spring', stiffness: 520, damping: 34, mass: 0.8 } as const
 export const softSpring = { type: 'spring', stiffness: 260, damping: 30 } as const
@@ -73,6 +74,13 @@ export function MacroChips({ m, className = '' }: { m: Macros; className?: strin
   )
 }
 
+/** Imagen que puede venir del almacenamiento privado (rutas "sb:") */
+export function MediaImg({ src, alt = '', className = '' }: { src?: string; alt?: string; className?: string }) {
+  const url = useMedia(src)
+  if (!url) return <span aria-hidden className={`block animate-pulse bg-surface-2 ${className}`} />
+  return <img src={url} alt={alt} loading="lazy" decoding="async" className={className} />
+}
+
 /** Foto redonda de la receta, con aro de macros alrededor */
 export function Dish({ src, m, size = 56, className = '' }: { src?: string; m?: Macros; size?: number; className?: string }) {
   let ring = 'var(--surface-2)'
@@ -92,7 +100,7 @@ export function Dish({ src, m, size = 56, className = '' }: { src?: string; m?: 
   return (
     <span aria-hidden className={`relative grid shrink-0 place-items-center rounded-full ${className}`} style={{ width: size, height: size, background: ring }}>
       <span className="grid size-[calc(100%-6px)] place-items-center overflow-hidden rounded-full bg-surface">
-        {src ? <img src={src} alt="" loading="lazy" decoding="async" className="size-full object-cover" /> : <span className="size-1/2 rounded-full bg-surface-2" />}
+        {src ? <MediaImg src={src} className="size-full object-cover" /> : <span className="size-1/2 rounded-full bg-surface-2" />}
       </span>
     </span>
   )

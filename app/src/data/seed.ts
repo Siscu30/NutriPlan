@@ -5,8 +5,8 @@ import { MERIENDA_ROTATION, MENU_NOTES, WEEK_MENUS } from './plan'
 import { RECIPES } from './recipes'
 import type { GuideSection, PersonId, PlanDoc, PlanRecipe } from './types'
 
-/** Ruta de un archivo de public/ respetando la base de publicación */
-export const asset = (p: string) => `${import.meta.env.BASE_URL}${p}`
+/** Ruta de un archivo del almacenamiento privado (se firma al mostrarlo) */
+export const asset = (p: string) => `sb:${p}`
 
 type Media = Record<PersonId, { pages: number; img: Record<string, number | null> }>
 const M = media as Media

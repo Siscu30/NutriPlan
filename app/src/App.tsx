@@ -1,13 +1,13 @@
 import { AnimatePresence, MotionConfig, motion } from 'motion/react'
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { SideRail, TabBar, type Tab } from './components/Nav'
+import { AuthGate } from './components/AuthGate'
 import { PageViewerProvider } from './components/PageViewer'
 import { RecipeSheet, type SheetTarget } from './components/RecipeSheet'
 import { Settings } from './components/Settings'
 import type { SlotMeal } from './data/types'
 import { today } from './lib/dates'
 import { useStore } from './lib/store'
-import { restartSync } from './lib/sync'
 import { Guia } from './screens/Guia'
 import { Hoy } from './screens/Hoy'
 import { Recetas } from './screens/Recetas'
@@ -18,7 +18,6 @@ const ORDER: Tab[] = ['hoy', 'semana', 'recetas', 'guia']
 const THEME = { fran: '#2b1531', lua: '#0d3f3c' }
 
 export default function App() {
-  const person = useStore((s) => s.person)
   const [tab, setTabRaw] = useState<Tab>('hoy')
   const [dir, setDir] = useState(1)
   const [date, setDate] = useState(today())
@@ -27,12 +26,6 @@ export default function App() {
   const [settings, setSettings] = useState(false)
   const [importing, setImporting] = useState(false)
 
-  useEffect(() => restartSync(), [])
-  // Color de fondo según de quién es el plan
-  useEffect(() => {
-    document.documentElement.dataset.person = person
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', THEME[person])
-  }, [person])
 
   const setTab = (t: Tab) => {
     setDir(ORDER.indexOf(t) >= ORDER.indexOf(tab) ? 1 : -1)
@@ -42,6 +35,8 @@ export default function App() {
 
   return (
     <MotionConfig reducedMotion="user">
+      <AuthGate>
+      <PersonTheme />
       <PageViewerProvider>
         <div className="flex min-h-dvh">
           <SideRail tab={tab} onChange={setTab} />
@@ -91,6 +86,17 @@ export default function App() {
           </Suspense>
         )}
       </PageViewerProvider>
+      </AuthGate>
     </MotionConfig>
   )
+}
+
+/** Color de fondo según de quién es el plan (solo dentro de la app, tras entrar) */
+function PersonTheme() {
+  const person = useStore((s) => s.person)
+  useEffect(() => {
+    document.documentElement.dataset.person = person
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', THEME[person])
+  }, [person])
+  return null
 }

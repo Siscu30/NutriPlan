@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Fotos y páginas de los planes: privadas, se suben a Supabase Storage (npm run upload-media)
+media/

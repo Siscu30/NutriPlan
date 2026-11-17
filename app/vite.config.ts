@@ -15,7 +15,7 @@ export default defineConfig(({ command, isPreview }) => ({
         maximumFileSizeToCacheInBytes: 5_000_000,
         runtimeCaching: [
           {
-            urlPattern: ({ url }) => url.pathname.includes('/img/') || url.pathname.includes('/pages/'),
+            urlPattern: ({ url }) => url.pathname.includes('/storage/v1/object/sign/plato-media/'),
             handler: 'CacheFirst',
             options: { cacheName: 'plato-media', expiration: { maxEntries: 400 } },
           },

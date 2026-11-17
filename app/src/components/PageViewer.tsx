@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from 'motion/react'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
-import { Press, spring } from './ui'
+import { MediaImg, Press, spring } from './ui'
 
 type Open = (pages: string[], index?: number, title?: string) => void
 const Ctx = createContext<Open>(() => {})
@@ -50,10 +50,8 @@ export function PageViewerProvider({ children }: { children: ReactNode }) {
             </div>
             <div className="relative min-h-0 flex-1 overflow-auto px-3 pb-[calc(env(safe-area-inset-bottom)+12px)]" onClick={(e) => e.stopPropagation()}>
               <AnimatePresence mode="popLayout" initial={false}>
-                <motion.img
+                <motion.div
                   key={view.pages[view.i]}
-                  src={view.pages[view.i]}
-                  alt={`Página ${view.i + 1}`}
                   initial={{ opacity: 0, scale: 0.96 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0 }}
@@ -64,8 +62,10 @@ export function PageViewerProvider({ children }: { children: ReactNode }) {
                     if (info.offset.x < -60) go(1)
                     if (info.offset.x > 60) go(-1)
                   }}
-                  className="mx-auto w-full max-w-3xl touch-pan-y rounded-xl bg-white"
-                />
+                  className="mx-auto w-full max-w-3xl touch-pan-y"
+                >
+                  <MediaImg src={view.pages[view.i]} alt={`Página ${view.i + 1}`} className="block aspect-[595/842] w-full rounded-xl bg-white object-contain" />
+                </motion.div>
               </AnimatePresence>
             </div>
             {view.pages.length > 1 && (

@@ -1,6 +1,7 @@
 import { motion } from 'motion/react'
-import { Cloud, CloudOff, FileUp, KeyRound, Link2, Trash2, X } from 'lucide-react'
-import { getSyncConfig, newHousehold, pairingLink, setSyncConfig, type SyncConfig } from '../lib/sync'
+import { Cloud, CloudOff, FileUp, KeyRound, Trash2, X } from 'lucide-react'
+import { useAuth } from '../lib/auth'
+import { AccessAdmin, AccountSection } from './Access'
 import { useState } from 'react'
 import { Drawer } from 'vaul'
 import type { PersonId, PlanDoc } from '../data/types'
@@ -8,10 +9,12 @@ import { mondayOf, shortDate, today } from '../lib/dates'
 import { actions, activePlan, plansOf, useStore } from '../lib/store'
 import { Press, spring } from './ui'
 
-const PEOPLE: PersonId[] = ['fran', 'lua']
+const ALL: PersonId[] = ['fran', 'lua']
 
 export function Settings({ open, onClose, onImport }: { open: boolean; onClose: () => void; onImport: () => void }) {
   const state = useStore((s) => s)
+  const { profile } = useAuth()
+  const PEOPLE = ALL.filter((p) => profile?.can_view.includes(p))
   const [confirm, setConfirm] = useState<string | null>(null)
   const [showKey, setShowKey] = useState(false)
   const t = today()
@@ -84,7 +87,8 @@ export function Settings({ open, onClose, onImport }: { open: boolean; onClose: 
               ))}
             </section>
 
-            <SyncSection />
+            <AccountSection />
+            <AccessAdmin />
 
             <section className="mt-7">
               <h3 className="display flex items-center gap-2 text-lg font-semibold">
@@ -166,82 +170,6 @@ function Switch({ on, onChange, label }: { on: boolean; onChange: (v: boolean) =
     <button type="button" role="switch" aria-checked={on} aria-label={label} onClick={() => onChange(!on)} className={`relative h-8 w-14 shrink-0 cursor-pointer rounded-full transition-colors ${on ? 'bg-veg' : 'bg-surface-2'}`}>
       <motion.span layout transition={spring} className="absolute top-1 size-6 rounded-full bg-white shadow" style={{ left: on ? 28 : 4 }} />
     </button>
-  )
-}
-
-function SyncSection() {
-  const [cfg, setCfg] = useState<SyncConfig | null>(() => getSyncConfig())
-  const [url, setUrl] = useState('')
-  const [key, setKey] = useState('')
-  const [household, setHousehold] = useState('')
-  const [copied, setCopied] = useState(false)
-
-  if (cfg) {
-    const link = pairingLink(cfg)
-    return (
-      <section className="mt-7">
-        <h3 className="display flex items-center gap-2 text-lg font-semibold">
-          <Cloud className="size-4" /> Sincronización
-        </h3>
-        <p className="mt-1 text-sm text-muted">Abre este enlace en el otro móvil o en el ordenador para compartir los mismos datos. Es privado: quien lo tenga puede ver y cambiar vuestros planes.</p>
-        <div className="mt-2 flex gap-2">
-          <Press
-            onClick={async () => {
-              try {
-                if (navigator.share) await navigator.share({ title: 'Plato', url: link })
-                else await navigator.clipboard.writeText(link)
-                setCopied(true)
-              } catch {
-                /* compartir cancelado */
-              }
-            }}
-            className="flex h-12 flex-1 items-center justify-center gap-2 rounded-2xl bg-surface text-sm font-semibold"
-          >
-            <Link2 className="size-4" /> {copied ? 'Enlace listo' : 'Compartir enlace de vinculación'}
-          </Press>
-          <Press
-            onClick={() => {
-              setSyncConfig(null)
-              setCfg(null)
-            }}
-            className="h-12 rounded-2xl bg-surface px-4 text-sm font-semibold text-prot"
-          >
-            Desconectar
-          </Press>
-        </div>
-      </section>
-    )
-  }
-
-  const valid = /^https:\/\/.+\.supabase\.co\/?$/.test(url.trim()) && key.trim().length > 30 && household.trim().length >= 20
-  return (
-    <section className="mt-7">
-      <h3 className="display flex items-center gap-2 text-lg font-semibold">
-        <CloudOff className="size-4" /> Sincronización
-      </h3>
-      <p className="mt-1 text-sm text-muted">Conecta un proyecto de Supabase para tener los mismos datos en los dos móviles y el ordenador. Si el otro dispositivo ya está conectado, abre aquí su enlace de vinculación.</p>
-      <div className="mt-2 space-y-2">
-        <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://xxxx.supabase.co" aria-label="URL del proyecto de Supabase" className="h-12 w-full rounded-2xl border border-line bg-surface px-4 text-base outline-none focus:border-carb" />
-        <input value={key} onChange={(e) => setKey(e.target.value)} placeholder="Clave anon pública" aria-label="Clave anon pública de Supabase" className="h-12 w-full rounded-2xl border border-line bg-surface px-4 text-base outline-none focus:border-carb" />
-        <div className="flex gap-2">
-          <input value={household} onChange={(e) => setHousehold(e.target.value.trim())} placeholder="Código de casa" aria-label="Código de casa" className="h-12 min-w-0 flex-1 rounded-2xl border border-line bg-surface px-4 text-base outline-none focus:border-carb" />
-          <Press onClick={() => setHousehold(newHousehold())} className="h-12 rounded-2xl bg-surface px-4 text-sm font-semibold">
-            Crear código
-          </Press>
-        </div>
-        <Press
-          disabled={!valid}
-          onClick={() => {
-            const c = { url: url.trim().replace(/\/$/, ''), key: key.trim(), household: household.trim() }
-            setSyncConfig(c)
-            setCfg(c)
-          }}
-          className="h-12 w-full rounded-2xl bg-accent font-semibold text-on-accent disabled:opacity-40"
-        >
-          Conectar
-        </Press>
-      </div>
-    </section>
   )
 }
 

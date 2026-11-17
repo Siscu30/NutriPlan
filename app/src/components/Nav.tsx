@@ -3,6 +3,7 @@ import { CalendarDays, ChefHat, Sun, Utensils, type LucideIcon } from 'lucide-re
 import { useRef, useEffect } from 'react'
 import type { PersonId } from '../data/types'
 import { actions, useStore } from '../lib/store'
+import { useAuth } from '../lib/auth'
 import { DAY_SHORT, addDays, dayNum, longDate, mondayOf, today } from '../lib/dates'
 import { Press, spring } from './ui'
 
@@ -107,7 +108,9 @@ export function SideRail({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => vo
 export function PersonSwitch() {
   const person = useStore((s) => s.person)
   const names = useStore((s) => s.shared.names)
-  const ids: PersonId[] = ['fran', 'lua']
+  const { profile } = useAuth()
+  const ids = (['fran', 'lua'] as PersonId[]).filter((id) => profile?.can_view.includes(id))
+  if (ids.length < 2) return null
   return (
     <div role="radiogroup" aria-label="Plan de" className="flex rounded-full border border-line bg-surface p-1">
       {ids.map((id) => {

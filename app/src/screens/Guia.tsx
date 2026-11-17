@@ -1,7 +1,7 @@
 import { motion } from 'motion/react'
 import { BookOpen } from 'lucide-react'
 import { usePageViewer } from '../components/PageViewer'
-import { Press, spring } from '../components/ui'
+import { MediaImg, Press, spring } from '../components/ui'
 import { activePlan, useStore } from '../lib/store'
 
 const TONE = { veg: 'var(--veg)', carb: 'var(--carb)', prot: 'var(--prot)', fat: 'var(--fat)' }
@@ -36,7 +36,7 @@ export function Guia({ date }: { date: string }) {
               <span className="size-3 rounded-full" style={{ background: TONE[s.tone] }} />
               {s.title}
             </h2>
-            {s.img && <img src={s.img} alt={`Ilustración: ${s.title}`} loading="lazy" className="mx-auto mt-4 w-full max-w-sm rounded-2xl bg-white" />}
+            {s.img && <MediaImg src={s.img} alt={`Ilustración: ${s.title}`} className="mx-auto mt-4 block aspect-[3/2] w-full max-w-sm rounded-2xl bg-white object-contain" />}
             {s.intro && <p className="mt-3 max-w-prose leading-relaxed text-muted">{s.intro}</p>}
             {s.bullets && (
               <ul className="mt-3 space-y-2">
@@ -78,7 +78,7 @@ export function Guia({ date }: { date: string }) {
               <div className="no-scrollbar -mx-5 mt-5 flex gap-3 overflow-x-auto px-5">
                 {s.pages.map((p, j) => (
                   <Press key={p} whileHover={{ y: -3 }} onClick={() => openPages(s.pages!, j, s.title)} className="shrink-0" aria-label={`Ver página original ${j + 1} de ${s.title}`}>
-                    <img src={p} alt="" loading="lazy" className="h-44 w-auto rounded-xl border border-line bg-white shadow-soft" />
+                    <MediaImg src={p} className="block h-44 w-[124px] rounded-xl border border-line bg-white object-cover shadow-soft" />
                   </Press>
                 ))}
               </div>
