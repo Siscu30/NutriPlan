@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { changePassword, refreshProfile, requestAccess, sendRecovery, signIn, signOut, useAuth } from '../lib/auth'
 import { actions, getState } from '../lib/store'
 import { startSync, stopSync } from '../lib/sync'
-import { supabase } from '../lib/supabase'
+import { linkError, supabase } from '../lib/supabase'
 import { Press, spring } from './ui'
 
 /** Solo deja pasar a usuarios aprobados; muestra el resto de pantallas de acceso */
@@ -101,12 +101,12 @@ const Msg = ({ text, ok }: { text: string | null; ok?: boolean }) =>
 
 type Mode = 'login' | 'request' | 'recover'
 function Login() {
-  const [mode, setMode] = useState<Mode>('login')
+  const [mode, setMode] = useState<Mode>(linkError ? 'recover' : 'login')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
-  const [msg, setMsg] = useState<{ text: string; ok?: boolean } | null>(null)
+  const [msg, setMsg] = useState<{ text: string; ok?: boolean } | null>(linkError ? { text: linkError } : null)
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -145,7 +145,8 @@ function Login() {
           ))}
         </div>
       )}
-      {mode === 'recover' && <h1 className="display text-2xl font-semibold">Recuperar contraseña</h1>}
+      {mode === 'recover' && <h1 className="display text-2xl font-semibold">{linkError ? 'Pide un enlace nuevo' : 'Recuperar contraseña'}</h1>}
+      {mode === 'recover' && <p className="text-sm text-muted">Te llegará un correo; el enlace abre Plato para que crees tu contraseña. Caduca en 24 horas.</p>}
       {mode === 'request' && <p className="text-sm text-muted">Tu solicitud quedará pendiente hasta que el administrador la apruebe.</p>}
       {mode === 'request' && <Field label="Nombre" value={name} onChange={setName} autoComplete="name" />}
       <Field label="Correo" type="email" value={email} onChange={setEmail} autoComplete="email" />
