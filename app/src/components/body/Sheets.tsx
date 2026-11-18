@@ -145,7 +145,7 @@ export function WeighInSheet({ open, person, entry, onClose }: { open: boolean; 
       setMsg(
         got.length
           ? {
-              text: `He leído ${got.length} ${got.length === 1 ? 'dato' : 'datos'} (en verde). ${r.check.includes('weight') ? 'Comprueba el peso: no he podido leer el decimal. ' : ''}Revísalos con la captura antes de guardar.`,
+              text: `He leído ${got.length} ${got.length === 1 ? 'dato' : 'datos'} (en verde). ${r.check.length ? `Comprueba con la captura: ${r.check.map((k) => SCALE.find((m) => m.key === k)?.label.toLowerCase() ?? k).join(', ')}. ` : ''}Revísalos antes de guardar.`,
               ok: !r.check.length,
             }
           : { text: 'No he encontrado datos en esa imagen. Usa las capturas de la pantalla de resultados de la báscula, o escribe los datos a mano.' },
