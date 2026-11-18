@@ -70,33 +70,41 @@ export async function readScaleScreens(images: Blob[], onProgress: (p: OcrProgre
   return parseScalePages(pages, today(), zoom)
 }
 
-/** Recorta una zona, la amplía y la deja en negro sobre blanco */
+/**
+ * Recorta una zona, la amplía y la deja en negro sobre blanco.
+ * Detecta sola si el fondo es claro u oscuro (modo claro u oscuro de Xiaomi Home).
+ */
 function crop(src: HTMLCanvasElement, b: Box, scale: number, binarize = false) {
   const x0 = Math.max(0, Math.floor(b.x0)), y0 = Math.max(0, Math.floor(b.y0))
   const w = Math.min(src.width, Math.ceil(b.x1)) - x0, h = Math.min(src.height, Math.ceil(b.y1)) - y0
   const c = document.createElement('canvas')
   c.width = Math.max(1, Math.round(w * scale))
   c.height = Math.max(1, Math.round(h * scale))
-  const ctx = c.getContext('2d')!
-  if (!binarize) ctx.filter = 'grayscale(1) invert(1) contrast(1.6)'
+  const ctx = c.getContext('2d', { willReadFrequently: true })!
   ctx.drawImage(src, x0, y0, w, h, 0, 0, c.width, c.height)
-  if (binarize) {
-    // Texto gris tenue sobre fondo oscuro: todo lo que destaca sobre el fondo pasa a negro, el resto a blanco
-    const img = ctx.getImageData(0, 0, c.width, c.height)
-    const d = img.data
-    const lum = (i: number) => 0.3 * d[i] + 0.59 * d[i + 1] + 0.11 * d[i + 2]
-    const hist = new Array(256).fill(0)
-    for (let i = 0; i < d.length; i += 4) hist[Math.round(lum(i))]++
-    let acc = 0
-    let bg = 0
-    for (let v = 0; v < 256; v++) if ((acc += hist[v]) >= d.length / 8) { bg = v; break } // mediana del fondo
-    const t = bg + 28
-    for (let i = 0; i < d.length; i += 4) {
-      const ink = lum(i) > t ? 0 : 255
-      d[i] = d[i + 1] = d[i + 2] = ink
+  const img = ctx.getImageData(0, 0, c.width, c.height)
+  const d = img.data
+  const lum = (i: number) => 0.3 * d[i] + 0.59 * d[i + 1] + 0.11 * d[i + 2]
+  // El color más frecuente (mediana) es el fondo
+  const hist = new Array(256).fill(0)
+  for (let i = 0; i < d.length; i += 4) hist[Math.round(lum(i))]++
+  let acc = 0
+  let bg = 0
+  for (let v = 0; v < 256; v++) if ((acc += hist[v]) >= d.length / 8) { bg = v; break }
+  const light = bg > 128
+  for (let i = 0; i < d.length; i += 4) {
+    const l = lum(i)
+    let out: number
+    if (binarize) {
+      // Texto tenue: lo que se separa del fondo (más oscuro en modo claro, más claro en modo oscuro) pasa a negro
+      out = (light ? l < bg - 28 : l > bg + 28) ? 0 : 255
+    } else {
+      const g = light ? l : 255 - l
+      out = Math.max(0, Math.min(255, (g - 128) * 1.6 + 128))
     }
-    ctx.putImageData(img, 0, 0)
+    d[i] = d[i + 1] = d[i + 2] = out
   }
+  ctx.putImageData(img, 0, 0)
   return c
 }
 

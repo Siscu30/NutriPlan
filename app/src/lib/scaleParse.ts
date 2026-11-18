@@ -118,9 +118,22 @@ function fit(key: ScaleKey, x: { n: number; decimal: boolean }): number | undefi
   return undefined
 }
 
-/** Cuánto nos fiamos de una lectura: con coma > con 3 o más cifras > número corto */
-const trust = (key: ScaleKey, x: { n: number; decimal: boolean }) =>
-  INTEGER.includes(key) ? 1 : x.decimal ? 2 : String(x.n).length >= 3 ? 1 : 0
+type Num = { n: number; decimal: boolean }
+/**
+ * Elige entre las lecturas de un mismo dato (pasada normal e invertida):
+ * - la que trae coma, si la hay;
+ * - si una es la otra más cifras sueltas ("73" y "739", con la "g" de kg leída como 9), la corta;
+ * - si no, la más larga ("71" frente a "7717" = 77,1 kg).
+ */
+function choose(key: ScaleKey, xs: Num[]): Num | undefined {
+  if (!xs.length) return undefined
+  if (INTEGER.includes(key)) return xs[0]
+  const dec = xs.find((x) => x.decimal)
+  if (dec) return dec
+  const ds = xs.map((x) => String(x.n))
+  for (let i = 0; i < xs.length; i++) if (ds.some((d, j) => j !== i && d.length > ds[i].length && d.startsWith(ds[i]))) return xs[i]
+  return xs.reduce((a, b) => (String(b.n).length > String(a.n).length ? b : a))
+}
 
 /** Junta las líneas de varias pasadas y las ordena de arriba abajo */
 function mergeLines(lines: OcrLine[]): OcrLine[] {
@@ -272,10 +285,8 @@ export function parseScalePages(pages: OcrPage[], today: string, zoom: { weight?
         .sort((a, b) => b.y1 - a.y1)
       // Entre las lecturas de la misma fila (dos pasadas), la que trae decimal y cabe en el rango
       const row = cands.filter((o) => cands[0] && Math.abs(o.y1 - cands[0].y1) < h * 1.5)
-      const pick = row
-        .filter((o) => fit(key, valueOf(o)!) != null)
-        .sort((a, b) => trust(key, valueOf(b)!) - trust(key, valueOf(a)!))[0]
-      if (pick) set(key, valueOf(pick))
+      const pick = choose(key, row.map((o) => valueOf(o)!).filter((x) => fit(key, x) != null))
+      if (pick) set(key, pick)
     }
 
     // 1b) "Composición corporal": columna derecha con agua (kg), grasa, mineral óseo y masa proteica, en ese orden
@@ -310,18 +321,37 @@ export function parseScalePages(pages: OcrPage[], today: string, zoom: { weight?
       if (row) row[s.side] = s
       else byRow.push({ y: s.y0, [s.side]: s })
     }
-    for (const r of byRow.sort((a, b) => a.y - b.y)) if (r.left && r.right) gridRows.push([valueOf(r.left), valueOf(r.right)])
+    const pairs = byRow.sort((a, b) => a.y - b.y).filter((r) => r.left && r.right)
+    for (const r of pairs) gridRows.push([valueOf(r.left!), valueOf(r.right!)])
+
+    // IMC y % de grasa: la primera fila de dos números debajo de "Puntos" (tarjeta de puntuación)
+    const pts = lines.find((l) => l.words.some((w) => like(norm(w.text), 'puntos')))
+    if (pts) {
+      const r = pairs.find((p) => p.y > pts.y1)
+      const a = r && valueOf(r.left!)
+      const b = r && valueOf(r.right!)
+      if (a && b && fit('bmi', a) != null && fit('fatPct', b) != null && (fit('fatPct', b) ?? 0) < 45) {
+        set('bmi', a)
+        set('fatPct', b)
+      }
+    }
   }
 
   // La cuadrícula empieza en masa muscular (kg) + % de músculo; la fila de justo antes es IMC + % de grasa
   // (tarjeta de puntuación)
-  const seen = new Set<string>()
-  const rows = gridRows.filter(([a, b]) => {
-    const k = `${a?.n}|${b?.n}`
-    if (seen.has(k)) return false // filas repetidas al solaparse las capturas
-    seen.add(k)
-    return true
-  })
+  // Filas repetidas al solaparse las capturas (o cortadas por el borde, como "739" por "73 kg"):
+  // si coinciden, se quedan como una sola con la mejor lectura de cada lado
+  const digits = (x: Num) => String(x.n).replace('.', '')
+  const compatible = (x: Num | null, y: Num | null) => !!x && !!y && (digits(x).startsWith(digits(y)) || digits(y).startsWith(digits(x)))
+  const rows: [Num | null, Num | null][] = []
+  for (const [a, b] of gridRows) {
+    const same = rows.find(([c, d]) => compatible(a, c) && compatible(b, d))
+    if (!same) rows.push([a, b])
+    else {
+      same[0] = choose('muscleKg', [same[0]!, a!].filter(Boolean)) ?? same[0]
+      same[1] = choose('musclePct', [same[1]!, b!].filter(Boolean)) ?? same[1]
+    }
+  }
   // El % de músculo de Xiaomi ronda el 60-75 %; así no se confunde con la fila IMC / % grasa
   const start = rows.findIndex(([a, b]) => a && b && fit('muscleKg', a) != null && (fit('musclePct', b) ?? 0) >= 45)
   if (start > 0) {
