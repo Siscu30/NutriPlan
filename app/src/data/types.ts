@@ -33,6 +33,8 @@ export interface PlanRecipe {
   img?: string
   /** Página original del PDF (ruta o data URL) */
   page?: string
+  /** Plan del que viene (recetas de planes anteriores) */
+  from?: string
 }
 
 export type DayPlan = Record<SlotMeal, string[]>

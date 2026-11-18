@@ -118,6 +118,10 @@ const rows: Row[] = [
   ['linaza', 'Linaza molida / psyllium', 534, 18, 1.6, 42, 'grasa'],
   ['chocolate', 'Chocolate negro 85%', 600, 10, 20, 50, 'grasa', 10],
   ['cacao', 'Cacao puro desgrasado', 360, 20, 12, 12, 'otros'],
+  ['calamar', 'Calamar', 92, 15.6, 3.1, 1.4, 'proteina'],
+  ['pesto', 'Pesto', 450, 5, 6, 45, 'grasa'],
+  ['soja-texturizada', 'Soja texturizada (seca)', 330, 50, 18, 1, 'proteina'],
+  ['maiz-palomitas', 'Maíz para palomitas', 375, 11, 63, 4.5, 'hidrato'],
 
   // Verduras
   ['calabacin', 'Calabacín', 17, 1.2, 2.2, 0.3, 'verdura'],

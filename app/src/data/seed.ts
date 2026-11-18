@@ -3,6 +3,8 @@ import media from './media.json'
 import { GUIDE } from './guide'
 import { MERIENDA_ROTATION, MENU_NOTES, WEEK_MENUS } from './plan'
 import { RECIPES } from './recipes'
+import oldMedia from './media-old.json'
+import { OLD_PLAN_NAME, OLD_RECIPES } from './recipesOld'
 import type { GuideSection, PersonId, PlanDoc, PlanRecipe } from './types'
 
 /** Ruta de un archivo del almacenamiento privado (se firma al mostrarlo) */
@@ -94,6 +96,27 @@ function seed(p: PersonId): PlanDoc {
     img: imgOf(p, r.id),
     page: pageOf(p, r.id),
   }))
+  // Recetas de los planes anteriores (solo las que no están ya), para elegirlas al cambiar un plato
+  if (p === 'fran') {
+    const have = new Set(recipes.map((r) => r.id))
+    const om = oldMedia as Record<string, { page: string; img: boolean }>
+    for (const r of OLD_RECIPES) {
+      if (have.has(r.id)) continue
+      recipes.push({
+        id: r.id,
+        name: r.name,
+        meal: r.meal,
+        group: r.group,
+        yields: r.yields,
+        note: r.note,
+        steps: r.steps,
+        ing: r.ing.map((i) => ({ f: i.f, g: Array.isArray(i.g) ? i.g[0] : i.g, t: i.t })),
+        img: om[r.id]?.img ? asset(`img/fran-old/${r.id}.jpg`) : undefined,
+        page: om[r.id] ? asset(`pages/fran-old/${om[r.id].page}.jpg`) : undefined,
+        from: OLD_PLAN_NAME[r.from],
+      })
+    }
+  }
   const rot = MERIENDA_ROTATION[p]
   return {
     id: `seed-${p}-2026-11`,

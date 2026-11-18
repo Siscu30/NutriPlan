@@ -1,0 +1,318 @@
+{
+"arroz-berenjena-pesto": {
+"page": "sep1-8",
+"img": false
+},
+"pasta-champis-tofu": {
+"page": "sep1-8",
+"img": false
+},
+"pescado-horno-verduras": {
+"page": "sep1-8",
+"img": false
+},
+"pasta-verduras-asadas": {
+"page": "sep1-8",
+"img": false
+},
+"nyoquis-tomate": {
+"page": "sep1-8",
+"img": false
+},
+"nyoquis-cremosos-setas": {
+"page": "sep1-8",
+"img": false
+},
+"bol-invertido": {
+"page": "sep1-9",
+"img": false
+},
+"ensalada-boniato": {
+"page": "sep1-9",
+"img": false
+},
+"burrito-bowl": {
+"page": "sep1-9",
+"img": true
+},
+"carbonara-garbanzos": {
+"page": "sep1-10",
+"img": false
+},
+"ensalada-cesar": {
+"page": "sep1-10",
+"img": true
+},
+"pisto-garbanzos-bacalao": {
+"page": "sep1-10",
+"img": false
+},
+"boniato-contramuslo": {
+"page": "sep1-11",
+"img": true
+},
+"salmon-teriyaki": {
+"page": "sep1-11",
+"img": true
+},
+"pastel-brocoli": {
+"page": "sep1-11",
+"img": true
+},
+"merluza-riojana": {
+"page": "sep1-12",
+"img": true
+},
+"salteado-rustico-huevos": {
+"page": "sep1-12",
+"img": true
+},
+"pan-calabacin": {
+"page": "sep1-12",
+"img": false
+},
+"fajitas-zanahoria": {
+"page": "sep1-12",
+"img": true
+},
+"wok-gambas-merluza": {
+"page": "sep1-12",
+"img": false
+},
+"salmorejo": {
+"page": "sep1-14",
+"img": true
+},
+"gazpacho-sandia": {
+"page": "sep1-14",
+"img": false
+},
+"crema-esparragos": {
+"page": "sep1-14",
+"img": true
+},
+"crema-alcachofas": {
+"page": "sep1-14",
+"img": true
+},
+"crema-pepino-aguacate": {
+"page": "sep1-14",
+"img": true
+},
+"empanadillas-obleas": {
+"page": "sep1-16",
+"img": true
+},
+"burrito-frio": {
+"page": "sep1-16",
+"img": true
+},
+"bocadillo-pollo": {
+"page": "sep1-16",
+"img": true
+},
+"bocadillo-sardinas": {
+"page": "sep1-16",
+"img": false
+},
+"tortilla-rapida-rellena": {
+"page": "sep1-18",
+"img": false
+},
+"bocadillo-atun": {
+"page": "sep1-18",
+"img": false
+},
+"ensalada-esparragos-blancos": {
+"page": "sep1-18",
+"img": true
+},
+"ensalada-pimiento-ventresca": {
+"page": "sep1-18",
+"img": true
+},
+"bocadillo-hummus-pollo": {
+"page": "sep1-19",
+"img": false
+},
+"bocadillo-huevo-aguacate": {
+"page": "sep1-19",
+"img": false
+},
+"bocadillo-picadillo-garbanzos": {
+"page": "sep1-19",
+"img": false
+},
+"yogur-batido-fruta": {
+"page": "sep1-5",
+"img": false
+},
+"palomitas": {
+"page": "sep1-28",
+"img": true
+},
+"kefir-chia-fruta": {
+"page": "sep1-28",
+"img": false
+},
+"pasta-fria-salmon": {
+"page": "oct1-8",
+"img": false
+},
+"ensalada-lentejas-boniato": {
+"page": "oct1-8",
+"img": false
+},
+"guiso-alubias": {
+"page": "oct1-8",
+"img": false
+},
+"nyoquis-pavo": {
+"page": "oct1-8",
+"img": false
+},
+"bowl-quinoa-contramuslo": {
+"page": "oct1-8",
+"img": false
+},
+"patata-lomo": {
+"page": "oct1-9",
+"img": false
+},
+"noodles-pollo": {
+"page": "oct1-9",
+"img": true
+},
+"tacos-pollo": {
+"page": "oct1-9",
+"img": false
+},
+"verduras-asadas-salsa": {
+"page": "oct1-10",
+"img": false
+},
+"tosta-aguacate-atun-huevo": {
+"page": "oct1-10",
+"img": false
+},
+"ensalada-garbanzos": {
+"page": "oct1-10",
+"img": false
+},
+"judias-zorza": {
+"page": "oct1-11",
+"img": true
+},
+"guisantes-jamon": {
+"page": "oct1-11",
+"img": true
+},
+"lasana-calabacin": {
+"page": "oct1-11",
+"img": true
+},
+"brochetas-calabacin": {
+"page": "oct1-11",
+"img": true
+},
+"pescado-patatas": {
+"page": "oct1-12",
+"img": false
+},
+"creps-espinacas": {
+"page": "oct1-12",
+"img": true
+},
+"calabacin-relleno": {
+"page": "oct1-18",
+"img": false
+},
+"pizza-espinacas-claras": {
+"page": "oct1-18",
+"img": false
+},
+"brocoli-boniato-gambas": {
+"page": "oct1-18",
+"img": true
+},
+"lentejas-curry-arroz": {
+"page": "oct2-9",
+"img": false
+},
+"pasta-salsa-calabaza-pavo": {
+"page": "oct2-9",
+"img": false
+},
+"sopa-nyoquis-setas": {
+"page": "oct2-9",
+"img": false
+},
+"pasta-pisto-pollo": {
+"page": "oct2-9",
+"img": false
+},
+"arroz-calamares": {
+"page": "oct2-9",
+"img": false
+},
+"potaje-lentejas": {
+"page": "oct2-9",
+"img": false
+},
+"pescado-patatas-panaderas": {
+"page": "oct2-9",
+"img": false
+},
+"arroz-pollo-guacamole": {
+"page": "oct2-11",
+"img": false
+},
+"fajita-hamburguesa": {
+"page": "oct2-11",
+"img": false
+},
+"helices-lenteja-pisto-caballa": {
+"page": "oct2-11",
+"img": false
+},
+"ensalada-boniato-caballa": {
+"page": "oct2-11",
+"img": false
+},
+"burrito-bowl-salteado": {
+"page": "oct2-11",
+"img": false
+},
+"boqueron-air-fryer": {
+"page": "oct2-12",
+"img": true
+},
+"hamburguesa-pollo": {
+"page": "oct2-12",
+"img": true
+},
+"tosta-sardina-crema": {
+"page": "oct2-12",
+"img": true
+},
+"sopa-verduras-garbanzos": {
+"page": "oct2-13",
+"img": false
+},
+"garbanzos-espinacas-huevo": {
+"page": "oct2-13",
+"img": false
+},
+"tosta-hummus-huevo": {
+"page": "oct2-13",
+"img": false
+},
+"garbanzos-pisto-huevo": {
+"page": "oct2-13",
+"img": false
+},
+"tallarines-calabacin": {
+"page": "oct2-14",
+"img": false
+}
+}

@@ -13,9 +13,14 @@ export function Recetas({ date, openRecipe }: { date: string; openRecipe: (planI
   const state = useStore((s) => s)
   const [q, setQ] = useState('')
   const [filter, setFilter] = useState<Meal | 'todas'>('todas')
+  const [origin, setOrigin] = useState('todos')
   const plan = activePlan(state, state.person, date)
   const all = [HOUSE_BREAKFAST[state.person], ...plan.recipes]
+  // De qué plan viene cada receta (las del plan actual no llevan marca)
+  const origins = [plan.name, ...new Set(plan.recipes.map((r) => r.from).filter((x): x is string => !!x))]
+  const originOf = (r: { from?: string }) => r.from ?? plan.name
   const list = all
+    .filter((r) => origin === 'todos' || originOf(r) === origin)
     .filter((r) => filter === 'todas' || r.meal.includes(filter))
     .filter((r) => norm(`${r.name} ${r.group ?? ''} ${r.ing.map((i) => i.f).join(' ')}`).includes(norm(q)))
 
@@ -29,7 +34,7 @@ export function Recetas({ date, openRecipe }: { date: string; openRecipe: (planI
     <div className="mx-auto w-full max-w-5xl">
       <h1 className="display text-[30px] leading-tight font-semibold md:text-4xl">Recetas</h1>
       <p className="mt-1 text-muted">
-        {list.length} recetas de {plan.name}
+        {list.length} recetas{origin === 'todos' ? '' : ` de ${origin}`}
       </p>
 
       <label className="mt-5 flex h-12 items-center gap-2 rounded-2xl border border-line bg-surface px-4">
@@ -52,6 +57,22 @@ export function Recetas({ date, openRecipe }: { date: string; openRecipe: (planI
         ))}
       </div>
 
+      {origins.length > 1 && (
+        <div className="no-scrollbar -mx-4 mt-2 flex gap-1.5 overflow-x-auto px-4 md:mx-0 md:px-0">
+          {['todos', ...origins].map((o) => (
+            <Press
+              key={o}
+              onClick={() => setOrigin(o)}
+              aria-pressed={o === origin}
+              className={`relative h-9 shrink-0 rounded-full border px-3.5 text-[13px] font-semibold ${o === origin ? 'border-transparent text-on-accent' : 'border-line text-muted'}`}
+            >
+              {o === origin && <motion.span layoutId="origin-pill" transition={spring} className="absolute inset-0 rounded-full bg-accent" />}
+              <span className="relative">{o === 'todos' ? 'Todos los planes' : o}</span>
+            </Press>
+          ))}
+        </div>
+      )}
+
       <AnimatePresence mode="popLayout">
         {[...groups.entries()].map(([g, rs]) => (
           <motion.section key={g} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="mt-7">
@@ -71,7 +92,11 @@ export function Recetas({ date, openRecipe }: { date: string; openRecipe: (planI
                       <span className="min-w-0 flex-1">
                         <span className="block leading-snug font-medium text-balance">{r.name}</span>
                         <MacroChips m={m} className="mt-2" />
-                        {r.yields && <span className="mt-1 block text-[13px] text-muted">{r.yields}</span>}
+                        {(r.yields || r.from) && (
+                          <span className="mt-1 block text-[13px] text-muted">
+                            {[r.from && `Plan ${r.from}`, r.yields].filter(Boolean).join(' · ')}
+                          </span>
+                        )}
                       </span>
                     </Press>
                   </motion.li>
