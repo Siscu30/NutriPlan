@@ -2,7 +2,10 @@
 // La primera vez descarga el lector y el idioma español (unos pocos MB); después quedan guardados.
 import type { Worker } from 'tesseract.js'
 import { today } from './dates'
-import { dateIn, parseScalePages, weightFromZoom, weightOf, type Box, type OcrLine, type OcrPage, type ParsedScale } from './scaleParse'
+import { dateIn, parseScalePages, weightFromZoom, weightOf, type Box, type OcrLine, type OcrPage, type OcrWord, type ParsedScale } from './scaleParse'
+
+/** Ancho al que se normalizan las capturas antes de leerlas */
+const OCR_WIDTH = 1290
 
 export type OcrProgress = { stage: 'loading' | 'reading'; pct: number; index?: number; total?: number }
 
@@ -23,11 +26,18 @@ function getWorker() {
   return worker
 }
 
-/** Escala a ~1200 px de ancho y devuelve dos versiones: original y gris invertido (texto oscuro sobre claro) */
-async function variants(blob: Blob): Promise<{ canvases: HTMLCanvasElement[]; width: number }> {
+/** Ancho de cada lectura: la primera a tamaño original (si es de móvil); la segunda, a otra escala */
+function widthFor(original: number, attempt: 0 | 1) {
+  const native = original >= 900 && original <= 1600 ? original : OCR_WIDTH
+  if (attempt === 0) return native
+  return Math.abs(native - OCR_WIDTH) > 60 ? OCR_WIDTH : 1100
+}
+
+/** Escala la captura y devuelve dos versiones: original y gris invertido (texto oscuro sobre claro) */
+async function variants(blob: Blob, attempt: 0 | 1): Promise<{ canvases: HTMLCanvasElement[]; width: number; original: number }> {
   const bmp = await createImageBitmap(blob)
-  // Las capturas del iPhone (1179-1320 px) se leen tal cual: reescalar emborrona los números pequeños
-  const scale = bmp.width >= 900 && bmp.width <= 1600 ? 1 : 1200 / bmp.width
+  const original = bmp.width
+  const scale = widthFor(original, attempt) / original
   const w = Math.round(bmp.width * scale)
   const h = Math.round(bmp.height * scale)
   const make = (invert: boolean) => {
@@ -40,21 +50,18 @@ async function variants(blob: Blob): Promise<{ canvases: HTMLCanvasElement[]; wi
     ctx.drawImage(bmp, 0, 0, w, h)
     return c
   }
-  const out = { canvases: [make(false), make(true)], width: w }
+  const out = { canvases: [make(false), make(true)], width: w, original }
   bmp.close()
   return out
 }
 
-/** Lee una o varias capturas y une sus datos en un solo pesaje */
-export async function readScaleScreens(images: Blob[], onProgress: (p: OcrProgress) => void): Promise<ParsedScale> {
-  onLoad = (pct) => onProgress({ stage: 'loading', pct })
-  onProgress({ stage: 'loading', pct: 0 })
-  const w = await getWorker()
+/** Una lectura completa de todas las capturas a una escala */
+async function readAt(w: Worker, images: Blob[], attempt: 0 | 1, onStep: (i: number) => void) {
   const pages: OcrPage[] = []
   const sources: HTMLCanvasElement[] = []
   for (let i = 0; i < images.length; i++) {
-    onProgress({ stage: 'reading', pct: i / images.length, index: i + 1, total: images.length })
-    const { canvases, width } = await variants(images[i])
+    onStep(i)
+    const { canvases, width } = await variants(images[i], attempt)
     const lines: OcrLine[] = []
     for (const c of canvases) {
       const { data } = await w.recognize(c, {}, { blocks: true })
@@ -62,11 +69,101 @@ export async function readScaleScreens(images: Blob[], onProgress: (p: OcrProgre
         for (const p of b.paragraphs)
           for (const l of p.lines) lines.push({ ...l.bbox, words: l.words.map((x) => ({ text: x.text, ...x.bbox })) })
     }
+    // La lupa de números solo en la primera lectura (en la segunda se busca otra versión de los datos)
+    if (attempt === 0) await refineNumbers(w, lines, canvases[0])
     pages.push({ lines, width })
     sources.push(canvases[0])
   }
-  const zoom = await zoomReads(w, pages, sources)
-  onProgress({ stage: 'reading', pct: 1, index: images.length, total: images.length })
+  return { pages, zoom: await zoomReads(w, pages, sources) }
+}
+
+/**
+ * Relee "con lupa" cada número de la pantalla: recortado, ampliado, en blanco y negro y solo con dígitos y coma.
+ * Así no se cuelan la "g" de kg como un 9 ni se pierde la coma de "50,6".
+ * El número grande del peso tiene su propia lupa.
+ */
+async function refineNumbers(w: Worker, lines: OcrLine[], src: HTMLCanvasElement) {
+  // Solo los números que se usan: el primero de cada columna en cada línea (no flechas de cambio ni ejes)
+  const mid = src.width / 2
+  const words: OcrWord[] = []
+  for (const l of lines)
+    for (const left of [true, false]) {
+      const first = l.words.find((x) => (left ? x.x0 < mid : x.x0 >= mid) && x.text.trim())
+      const wd = first ? first.x1 - first.x0 : 0
+      // Con forma de número: ni diminuto ni un bloque grande (gráficas, tarjetas enteras)
+      if (first && /^[^\p{L}+\-−↑↓]*\d/u.test(first.text) && wd >= 10 && wd < src.width * 0.3 && first.y1 - first.y0 < src.width * 0.08) words.push(first)
+    }
+  words.splice(40)
+  if (!words.length) return
+  const heights = words.map((x) => x.y1 - x.y0).sort((a, b) => a - b)
+  const median = heights[Math.floor(heights.length / 2)]
+  const done: { box: OcrWord; text: string | null }[] = []
+  const overlap = (a: OcrWord, b: OcrWord) => {
+    const ix = Math.max(0, Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0))
+    const iy = Math.max(0, Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0))
+    return (ix * iy) / Math.max(1, Math.min((a.x1 - a.x0) * (a.y1 - a.y0), (b.x1 - b.x0) * (b.y1 - b.y0)))
+  }
+  try {
+    await w.setParameters({ tessedit_char_whitelist: '0123456789,', tessedit_pageseg_mode: '7' as never })
+    const deadline = performance.now() + 1500 // como mucho 1,5 s por captura
+    for (const word of words) {
+      if (performance.now() > deadline) break
+      const h = word.y1 - word.y0
+      if (h < 12 || h > median * 2.2) continue // muy pequeño o el peso grande
+      if ((word.x1 - word.x0) / h > 5) continue // no tiene forma de número
+      const prev = done.find((d) => overlap(d.box, word) > 0.6) // la misma cifra leída en la otra pasada
+      let text = prev?.text
+      if (prev === undefined) {
+        const pad = h * 0.18
+        const c = crop(src, { x0: word.x0 - pad, y0: word.y0 - pad, x1: word.x1 + pad, y1: word.y1 + pad }, Math.min(4, 64 / h))
+        const t = (await w.recognize(c)).data.text.trim()
+        text = /^\d{1,4}(,\d{1,2})?$/.test(t) ? t : null
+        done.push({ box: word, text })
+      }
+      // Solo se sustituye si la lectura con lupa es un número limpio y empieza igual (no se cambia de cifra)
+      const lead = word.text.match(/\d/)?.[0]
+      if (text && (!lead || text[0] === lead || word.text.replace(/\D/g, '').startsWith(text.replace(/\D/g, '').slice(0, 1)))) {
+        const unit = word.text.match(/%$/) ? '%' : ''
+        word.text = text + unit
+      }
+    }
+  } catch {
+    /* sin lupa: vale la lectura general */
+  } finally {
+    await w.setParameters({ tessedit_char_whitelist: '', tessedit_pageseg_mode: '6' as never })
+  }
+}
+
+/** Pasa las líneas de una lectura a la escala de otra (misma captura, distinto tamaño) */
+function rescale(page: OcrPage, toWidth: number): OcrPage {
+  const k = toWidth / page.width
+  const box = <T extends { x0: number; y0: number; x1: number; y1: number }>(b: T): T => ({ ...b, x0: b.x0 * k, y0: b.y0 * k, x1: b.x1 * k, y1: b.y1 * k })
+  return { width: toWidth, lines: page.lines.map((l) => ({ ...box(l), words: l.words.map(box) })) }
+}
+
+const COMPLETE = 19
+
+/**
+ * Lee una o varias capturas y une sus datos en un solo pesaje.
+ * Si en la primera lectura falta algo o hay dudas, hace una segunda a otra escala y junta las dos:
+ * el lector elige entre todas las lecturas las que cuadran entre sí.
+ */
+export async function readScaleScreens(images: Blob[], onProgress: (p: OcrProgress) => void): Promise<ParsedScale> {
+  onLoad = (pct) => onProgress({ stage: 'loading', pct })
+  onProgress({ stage: 'loading', pct: 0 })
+  const w = await getWorker()
+  const n = images.length
+  const first = await readAt(w, images, 0, (i) => onProgress({ stage: 'reading', pct: i / (n * 2), index: i + 1, total: n }))
+  const r1 = parseScalePages(first.pages, today(), first.zoom)
+  // Segunda lectura solo si merece la pena: faltan 2 o más datos o el peso es dudoso
+  if (COMPLETE - Object.keys(r1.v).length < 2 && !r1.check.includes('weight')) {
+    onProgress({ stage: 'reading', pct: 1, index: n, total: n })
+    return r1
+  }
+  const second = await readAt(w, images, 1, (i) => onProgress({ stage: 'reading', pct: 0.5 + i / (n * 2), index: i + 1, total: n }))
+  const pages = first.pages.map((p, i) => ({ width: p.width, lines: [...p.lines, ...rescale(second.pages[i], p.width).lines] }))
+  const zoom = { weights: [...first.zoom.weights, ...second.zoom.weights], date: first.zoom.date || second.zoom.date }
+  onProgress({ stage: 'reading', pct: 1, index: n, total: n })
   return parseScalePages(pages, today(), zoom)
 }
 
@@ -112,21 +209,22 @@ function crop(src: HTMLCanvasElement, b: Box, scale: number, binarize = false) {
  * Lectura "con lupa" del peso y de la fecha: solo dígitos, en la zona ampliada.
  * El decimal pequeño del peso (",8") y la fecha gris clara se leen mal en la pasada general.
  */
-async function zoomReads(w: Worker, pages: OcrPage[], sources: HTMLCanvasElement[]): Promise<{ weight?: number; date?: string }> {
+async function zoomReads(w: Worker, pages: OcrPage[], sources: HTMLCanvasElement[]): Promise<{ weights: number[]; date?: string }> {
   let best: { i: number; r: NonNullable<ReturnType<typeof weightOf>> } | null = null
   pages.forEach((p, i) => {
     const r = weightOf(p.lines)
     if (r && (!best || r.h > best.r.h)) best = { i, r }
   })
-  if (!best) return {}
+  if (!best) return { weights: [] }
   const { i, r } = best as { i: number; r: NonNullable<ReturnType<typeof weightOf>> }
   const src = sources[i]
-  const out: { weight?: number; date?: string } = {}
+  const out: { weights: number[]; date?: string } = { weights: [] }
   try {
     await w.setParameters({ tessedit_char_whitelist: '0123456789,', tessedit_pageseg_mode: '7' as never })
     const pad = r.h * 0.15
     const wz = await w.recognize(crop(src, { x0: r.box.x0 - pad, y0: r.box.y0 - pad, x1: r.box.x1 + pad, y1: r.box.y1 + pad }, 1))
-    out.weight = weightFromZoom(wz.data.text, r.intPart)
+    const zw = weightFromZoom(wz.data.text, r.intPart)
+    if (zw != null) out.weights.push(zw)
     // La fecha está entre el título y el peso, en gris claro
     await w.setParameters({ tessedit_char_whitelist: '0123456789/: ', tessedit_pageseg_mode: '6' as never })
     const dz = await w.recognize(crop(src, { x0: 0, y0: r.box.y0 - r.h * 2.8, x1: src.width, y1: r.box.y0 - r.h * 0.3 }, 2, true))

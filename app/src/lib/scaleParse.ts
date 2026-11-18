@@ -34,7 +34,7 @@ export interface ParsedScale {
 const RANGE: Record<ScaleKey, [number, number]> = {
   weight: [25, 300], bmi: [10, 70], fatPct: [3, 70], fatKg: [1, 160], waterPct: [25, 80], muscleKg: [10, 130],
   musclePct: [25, 95], skeletalKg: [5, 90], proteinPct: [4, 30], proteinKg: [2, 40], boneKg: [1, 10], bonePct: [0.5, 10],
-  visceral: [1, 60], bmr: [700, 4500], bodyAge: [10, 99], leanKg: [15, 160], whr: [0.5, 1.6], hr: [30, 220], score: [1, 100],
+  visceral: [1, 60], bmr: [700, 4500], bodyAge: [10, 99], leanKg: [15, 160], whr: [0.5, 1.6], hr: [30, 220], score: [20, 100],
 }
 
 /** Nombres de cada dato: todas las palabras deben aparecer; "not" no debe aparecer */
@@ -237,13 +237,23 @@ export function dateIn(text: string, today: string): string {
 const DATE = /(\d{1,2})\s*\/\s*(\d{1,2})\s*\/\s*(\d{4})/
 
 /** Interpreta todas las capturas de un pesaje y une sus datos */
-export function parseScalePages(pages: OcrPage[], today: string, zoom: { weight?: number; date?: string } = {}): ParsedScale {
+export function parseScalePages(pages: OcrPage[], today: string, zoom: { weights?: number[]; date?: string } = {}): ParsedScale {
   const v: Partial<Record<ScaleKey, number>> = {}
   let date = ''
-  const set = (k: ScaleKey, x: { n: number; decimal: boolean } | null) => {
+  // Todas las lecturas posibles de cada dato (para elegir luego la que cuadra con el resto)
+  const alts: Partial<Record<ScaleKey, number[]>> = {}
+  const intOnly = new Set<ScaleKey>() // leído sin decimal en un dato que Xiaomi siempre muestra con decimal
+  const alt = (k: ScaleKey, x: Num | null) => {
+    if (!x) return
+    for (const n of fitAll(k, x)) if (!(alts[k] ??= []).includes(n)) alts[k]!.push(n)
+  }
+  const set = (k: ScaleKey, x: Num | null) => {
+    alt(k, x)
     if (!x || v[k] != null) return
     const n = fit(k, x)
-    if (n != null) v[k] = n
+    if (n == null) return
+    v[k] = n
+    if (ALWAYS_DECIMAL.includes(k) && !x.decimal && String(x.n).length <= 2) intOnly.add(k)
   }
 
   // Fallback por orden: la cuadrícula de tarjetas de Xiaomi Home, fila a fila
@@ -257,6 +267,8 @@ export function parseScalePages(pages: OcrPage[], today: string, zoom: { weight?
   ]
   const gridRows: [ReturnType<typeof valueOf>, ReturnType<typeof valueOf>][] = []
   let bestWeightH = 0
+  let bestWeightN: number | undefined
+  const waterKg: number[] = [] // "Masa de agua corporal" (kg): no se guarda, pero sirve para comprobar el % de agua
 
   for (const page of pages) {
     const lines = mergeLines(page.lines)
@@ -268,6 +280,7 @@ export function parseScalePages(pages: OcrPage[], today: string, zoom: { weight?
       bestWeightH = w.h
       v.weight = w.n
     }
+    if (w?.n != null && w.h >= bestWeightH) bestWeightN = w.n
     // Puntuación: "75 Puntos"
     for (const l of lines) {
       const i = l.words.findIndex((w) => like(norm(w.text), 'puntos'))
@@ -285,8 +298,10 @@ export function parseScalePages(pages: OcrPage[], today: string, zoom: { weight?
         .sort((a, b) => b.y1 - a.y1)
       // Entre las lecturas de la misma fila (dos pasadas), la que trae decimal y cabe en el rango
       const row = cands.filter((o) => cands[0] && Math.abs(o.y1 - cands[0].y1) < h * 1.5)
-      const pick = choose(key, row.map((o) => valueOf(o)!).filter((x) => fit(key, x) != null))
+      const xs = row.map((o) => valueOf(o)!).filter((x) => fit(key, x) != null)
+      const pick = choose(key, xs)
       if (pick) set(key, pick)
+      for (const x of xs) alt(key, x)
     }
 
     // 1b) "Composición corporal": columna derecha con agua (kg), grasa, mineral óseo y masa proteica, en ese orden
@@ -311,6 +326,9 @@ export function parseScalePages(pages: OcrPage[], today: string, zoom: { weight?
         set('boneKg', comp[2].x)
         set('proteinKg', comp[3].x)
       }
+      // Si el orden falla (una línea perdida o de más), las relaciones con el peso eligen después
+      for (const p of comp) for (const k of ['fatKg', 'boneKg', 'proteinKg'] as const) alt(k, p.x)
+      for (const p of comp) if (p.x) for (const n of fitAll('leanKg', p.x)) waterKg.push(n)
     }
 
     // 2) Filas de la cuadrícula: dos números, uno en cada columna
@@ -369,9 +387,130 @@ export function parseScalePages(pages: OcrPage[], today: string, zoom: { weight?
   })
 
   // Lo leído "con lupa" manda sobre la lectura general
-  if (zoom.weight != null) v.weight = zoom.weight
+  alts.weight = [...new Set([...(zoom.weights ?? []), ...(bestWeightN != null ? [bestWeightN] : [])])]
+  if (alts.weight.length) v.weight = alts.weight[0]
   if (zoom.date) date = zoom.date
+
+  const check = new Set<ScaleKey>(reconcile(v, alts, waterKg))
+  // Músculo esquelético: entre el 40 % y el 70 % de la masa muscular
+  if (v.skeletalKg != null && v.muscleKg != null && (v.skeletalKg < v.muscleKg * 0.4 || v.skeletalKg > v.muscleKg * 0.7)) {
+    const ok = (alts.skeletalKg ?? []).find((x) => x >= v.muscleKg! * 0.4 && x <= v.muscleKg! * 0.7)
+    if (ok != null) v.skeletalKg = ok
+    else delete v.skeletalKg
+  }
+  for (const k of intOnly) if (v[k] != null && Number.isInteger(v[k])) check.add(k)
   // El peso de Xiaomi siempre lleva un decimal: si no se ha leído, hay que revisarlo
-  const check: ScaleKey[] = v.weight != null && Number.isInteger(v.weight) ? ['weight'] : []
-  return { date: date || today, v, check }
+  if (v.weight != null && Number.isInteger(v.weight)) check.add('weight')
+  return { date: date || today, v, check: [...check] }
 }
+
+/** Datos que Xiaomi muestra siempre con un decimal ("32,6", "65,1 %", "18,0") */
+const ALWAYS_DECIMAL: ScaleKey[] = ['bmi', 'fatPct', 'waterPct', 'musclePct', 'proteinPct', 'bonePct', 'visceral', 'whr']
+
+/** Todas las lecturas razonables de un número: tal cual y con la coma en cada posición */
+function fitAll(key: ScaleKey, x: Num): number[] {
+  const [lo, hi] = RANGE[key]
+  const ok = (n: number) => n >= lo && n <= hi
+  const out: number[] = []
+  if (ok(x.n)) out.push(x.n)
+  if (!x.decimal && !INTEGER.includes(key)) {
+    const d = String(x.n)
+    for (let k = d.length - 1; k >= 1; k--) {
+      const n = parseFloat(`${d.slice(0, k)}.${d[k]}`)
+      if (ok(n) && !out.includes(n)) out.push(n)
+    }
+  }
+  return out
+}
+
+/** Parejas que Xiaomi calcula a partir del peso: kg = peso × % / 100 */
+const PAIRS: [ScaleKey, ScaleKey][] = [
+  ['fatKg', 'fatPct'],
+  ['muscleKg', 'musclePct'],
+  ['proteinKg', 'proteinPct'],
+  ['boneKg', 'bonePct'],
+]
+const tolKg = (expected: number) => Math.max(0.16, expected * 0.002)
+const TOL_LEAN = 0.15
+
+/**
+ * Elige, entre las lecturas de cada dato, las que cuadran entre sí:
+ * kg = peso × % / 100 (grasa, músculo, proteína, mineral) y peso sin grasa = peso − grasa.
+ * Nunca calcula un valor: solo escoge entre lo leído. Si nada cuadra y el peso es fiable, deja el kg vacío.
+ * Devuelve los datos que conviene revisar.
+ */
+function reconcile(v: Partial<Record<ScaleKey, number>>, alts: Partial<Record<ScaleKey, number[]>>, waterKg: number[]): ScaleKey[] {
+  const c = (k: ScaleKey) => [...new Set([...(v[k] != null ? [v[k]!] : []), ...(alts[k] ?? [])])]
+  const bestPair = (W: number, kg: ScaleKey, pct: ScaleKey) => {
+    let best: { kg: number; pct: number; err: number } | null = null
+    for (const p of c(pct))
+      for (const k of c(kg)) {
+        const err = Math.abs(k - (W * p) / 100)
+        if (err <= tolKg((W * p) / 100) && (!best || err < best.err)) best = { kg: k, pct: p, err }
+      }
+    return best
+  }
+  const bestLean = (W: number) => {
+    let best: { lean: number; fat: number; err: number } | null = null
+    for (const f of c('fatKg'))
+      for (const l of c('leanKg')) {
+        const err = Math.abs(l + f - W)
+        if (err <= TOL_LEAN && (!best || err < best.err)) best = { lean: l, fat: f, err }
+      }
+    return best
+  }
+  // Peso: el que más relaciones cumple (a igualdad, el leído con lupa o el principal).
+  // Un peso menor que el peso sin grasa o la masa muscular es imposible (p. ej. el 50,6 del agua de otra captura).
+  const floor = Math.max(v.leanKg ?? 0, v.muscleKg ?? 0)
+  const ws = c('weight').filter((w) => w > floor)
+  const flags: ScaleKey[] = []
+  // También se prueba la suma de grasa + peso sin grasa leídas (el decimal pequeño del peso se lee mal)
+  const sums: number[] = []
+  for (const f of c('fatKg')) for (const l of c('leanKg')) sums.push(Math.round((f + l) * 10) / 10)
+  if (ws.length) {
+    for (const sum of sums) if (Math.abs(sum - ws[0]) < 1 && !ws.includes(sum)) ws.push(sum)
+  } else {
+    // Sin peso legible: solo si grasa + peso sin grasa lo dan, y marcado para revisar
+    if (!sums.length) {
+      delete v.weight
+      return v.weight == null && c('weight').length ? ['weight'] : []
+    }
+    ws.push(...new Set(sums))
+    flags.push('weight')
+  }
+  const bestWater = (W: number) => {
+    let best: { pct: number; err: number } | null = null
+    for (const p of c('waterPct'))
+      for (const k of waterKg) {
+        const err = Math.abs(k - (W * p) / 100)
+        if (err <= tolKg((W * p) / 100) && (!best || err < best.err)) best = { pct: p, err }
+      }
+    return best
+  }
+  const score = (W: number) => PAIRS.filter(([k, p]) => bestPair(W, k, p)).length + (bestLean(W) ? 1 : 0) + (bestWater(W) ? 1 : 0)
+  let W = ws[0]
+  for (const w of ws) if (score(w) > score(W)) W = w
+  const confirmed = score(W) >= 2
+  v.weight = W
+
+  for (const [kg, pct] of PAIRS) {
+    const b = bestPair(W, kg, pct)
+    if (b) {
+      v[kg] = b.kg
+      v[pct] = b.pct
+    } else if (confirmed && v[kg] != null && v[pct] != null) delete v[kg] // no cuadra: mejor vacío que equivocado
+  }
+  const wa = bestWater(W)
+  if (wa) v.waterPct = wa.pct
+  const l = bestLean(W)
+  if (l) {
+    v.leanKg = l.lean
+    if (!bestPair(W, 'fatKg', 'fatPct')) v.fatKg = l.fat
+  } else if (confirmed && v.leanKg != null && v.fatKg != null) delete v.leanKg
+
+  // Peso que no cuadra con nada pudiendo comprobarse: a revisar
+  const checkable = PAIRS.some(([k, p]) => c(k).length > 0 && c(p).length > 0) || (c('leanKg').length > 0 && c('fatKg').length > 0)
+  if (checkable && score(W) === 0) flags.push('weight')
+  return flags
+}
+
