@@ -1,13 +1,14 @@
 import { AnimatePresence, motion } from 'motion/react'
-import { Camera, ChevronDown, ScanText, Trash2, X } from 'lucide-react'
+import { ChevronDown, Images, Plus, ScanText, Trash2, X } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Drawer } from 'vaul'
-import { MEASURES, SCALE, fmt, live, type MeasureEntry, type MeasureKey, type ScaleKey, type WeighIn } from '../../data/body'
+import { MEASURES, SCALE, fmt, live, photosOf, type MeasureEntry, type MeasureKey, type ScaleKey, type WeighIn } from '../../data/body'
 import type { PersonId } from '../../data/types'
 import { deleteBodyPhoto, prepareImage, uploadBodyPhoto, type Prepared } from '../../lib/bodyPhoto'
 import { shortDate, today } from '../../lib/dates'
-import { readScaleCapture, readScaleOnServer } from '../../lib/scale'
+import { readScaleScreens, type OcrProgress } from '../../lib/scaleOcr'
 import { actions, useStore } from '../../lib/store'
+import { usePageViewer } from '../PageViewer'
 import { MediaImg, Press, spring } from '../ui'
 
 const newId = () => (crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)).replace(/-/g, '').slice(0, 16)
@@ -77,65 +78,82 @@ const Msg = ({ text, ok }: { text: string; ok?: boolean }) => (
 )
 
 // ───────── pesaje ─────────
+type Shot = { key: string; ref?: string; prep?: Prepared }
+
 export function WeighInSheet({ open, person, entry, onClose }: { open: boolean; person: PersonId; entry: WeighIn | null; onClose: () => void }) {
-  const apiKey = useStore((s) => s.apiKey)
+  const viewer = usePageViewer()
   const [date, setDate] = useState(today())
   const [vals, setVals] = useState<Partial<Record<ScaleKey, string>>>({})
-  const [photo, setPhoto] = useState<string | undefined>()
-  const [prep, setPrep] = useState<Prepared | null>(null)
-  const [reading, setReading] = useState(false)
+  const [shots, setShots] = useState<Shot[]>([])
+  const [progress, setProgress] = useState<OcrProgress | null>(null)
   const [filled, setFilled] = useState<Set<ScaleKey>>(new Set())
   const [more, setMore] = useState(false)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<{ text: string; ok?: boolean } | null>(null)
   const [confirmDel, setConfirmDel] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
-  const abort = useRef<AbortController | null>(null)
+  const alive = useRef(true)
 
   useEffect(() => {
     if (!open) return
+    alive.current = true
     setDate(entry?.date ?? today())
     setVals(Object.fromEntries(Object.entries(entry?.v ?? {}).map(([k, n]) => [k, toText(n)])))
-    setPhoto(entry?.photo)
-    setPrep(null)
+    setShots(photosOf(entry).map((ref) => ({ key: ref, ref })))
     setFilled(new Set())
     setMore(!!entry && Object.keys(entry.v).length > 1)
     setMsg(null)
+    setProgress(null)
     setConfirmDel(false)
-    return () => abort.current?.abort()
+    return () => {
+      alive.current = false
+    }
   }, [open, entry])
 
-  const pickFile = async (file?: File) => {
-    if (!file) return
+  const pickFiles = async (files: File[]) => {
+    if (!files.length) return
     setMsg(null)
-    let p: Prepared
-    try {
-      p = await prepareImage(file)
-    } catch {
-      return setMsg({ text: 'No se pudo abrir esa imagen. Prueba con otra captura.' })
-    }
-    setPrep(p)
-    setReading(true)
-    abort.current = new AbortController()
-    try {
-      // La lee el servidor de Plato; la clave propia (si hay) solo como respaldo
-      let r
+    const preps: Prepared[] = []
+    const originals: File[] = []
+    for (const f of files) {
       try {
-        r = await readScaleOnServer(person, p.base64)
-      } catch (e) {
-        if (!apiKey) throw e
-        r = await readScaleCapture(apiKey, p.base64, abort.current.signal)
+        preps.push(await prepareImage(f))
+        originals.push(f)
+      } catch {
+        /* imagen ilegible: se ignora */
       }
-      if (abort.current.signal.aborted) return
-      setVals((cur) => ({ ...cur, ...Object.fromEntries(Object.entries(r.v).map(([k, n]) => [k, toText(n)])) }))
-      setFilled(new Set(Object.keys(r.v) as ScaleKey[]))
-      if (r.date) setDate(r.date > today() ? today() : r.date)
-      setMore(true)
-      setMsg({ text: `He leído ${Object.keys(r.v).length} datos de la captura. Revísalos antes de guardar.`, ok: true })
-    } catch (e) {
-      if ((e as Error).name !== 'AbortError') setMsg({ text: `${(e as Error).message || 'No se pudo leer la captura.'} Puedes escribir los datos a mano y guardar igualmente.` })
+    }
+    if (!preps.length) return setMsg({ text: 'No se pudo abrir esa imagen. Prueba con otra captura.' })
+    setShots((s) => [...s, ...preps.map((p) => ({ key: p.url, prep: p }))])
+    try {
+      // El lector usa la captura original (a resolución completa); la versión reducida es solo para guardarla
+      const r = await readScaleScreens(
+        originals,
+        (p) => alive.current && setProgress(p),
+      )
+      if (!alive.current) return
+      const got = Object.keys(r.v) as ScaleKey[]
+      // Solo rellena lo que está vacío: lo escrito a mano no se pisa
+      setVals((cur) => {
+        const next = { ...cur }
+        for (const k of got) if (!next[k]) next[k] = toText(r.v[k])
+        return next
+      })
+      setFilled(new Set(got))
+      if (!entry && r.date) setDate(r.date)
+      setMore(got.length > 1)
+      setMsg(
+        got.length
+          ? {
+              text: `He leído ${got.length} ${got.length === 1 ? 'dato' : 'datos'} (en verde). ${r.check.includes('weight') ? 'Comprueba el peso: no he podido leer el decimal. ' : ''}Revísalos con la captura antes de guardar.`,
+              ok: !r.check.length,
+            }
+          : { text: 'No he encontrado datos en esa imagen. Usa las capturas de la pantalla de resultados de la báscula, o escribe los datos a mano.' },
+      )
+    } catch {
+      if (alive.current) setMsg({ text: 'No se pudo preparar el lector de capturas (¿sin conexión la primera vez?). Escribe los datos a mano y guarda igualmente.' })
     } finally {
-      setReading(false)
+      if (alive.current) setProgress(null)
     }
   }
 
@@ -144,19 +162,24 @@ export function WeighInSheet({ open, person, entry, onClose }: { open: boolean; 
     if (!weight) return setMsg({ text: 'Escribe al menos el peso.' })
     setBusy(true)
     const id = entry?.id ?? newId()
-    let ref = photo
+    const refs: string[] = []
     try {
-      if (prep) ref = await uploadBodyPhoto(person, id, prep.blob)
+      for (const [i, s] of shots.entries()) {
+        if (s.ref) refs.push(s.ref)
+        else if (s.prep) refs.push(await uploadBodyPhoto(person, `${id}-${Date.now().toString(36)}${i}`, s.prep.blob))
+      }
     } catch (e) {
       setBusy(false)
       return setMsg({ text: (e as Error).message })
     }
+    // Fotos quitadas al editar: se borran del almacenamiento
+    for (const old of photosOf(entry)) if (!refs.includes(old)) void deleteBodyPhoto(old)
     const v: WeighIn['v'] = {}
     for (const m of SCALE) {
       const n = toNum(vals[m.key] ?? '')
       if (n != null) v[m.key] = n
     }
-    actions.saveWeighIn(person, { id, date, photo: ref, v, updatedAt: 0 })
+    actions.saveWeighIn(person, { id, date, photo: refs[0], photos: refs.length ? refs : undefined, v, updatedAt: 0 })
     setBusy(false)
     onClose()
   }
@@ -165,45 +188,88 @@ export function WeighInSheet({ open, person, entry, onClose }: { open: boolean; 
     if (!entry) return
     if (!confirmDel) return setConfirmDel(true)
     actions.deleteWeighIn(person, entry.id)
-    void deleteBodyPhoto(entry.photo)
+    for (const ref of photosOf(entry)) void deleteBodyPhoto(ref)
     onClose()
   }
 
-  const preview = prep?.url ?? photo
+  const reading = !!progress
   const rest = SCALE.filter((m) => m.key !== 'weight')
+  const srcs = shots.map((s) => s.prep?.url ?? s.ref!)
 
   return (
     <Sheet open={open} onClose={onClose} title={entry ? 'Editar pesaje' : 'Nuevo pesaje'}>
       <div className="space-y-4">
-        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => pickFile(e.target.files?.[0] ?? undefined)} />
-        <Press onClick={() => fileRef.current?.click()} className="relative block w-full overflow-hidden rounded-3xl border border-dashed border-line bg-surface text-left">
-          {preview ? (
-            <div className="relative h-44">
-              {prep ? <img src={prep.url} alt="Captura de la báscula" className="size-full object-cover object-top" /> : <MediaImg src={preview} alt="Captura de la báscula" className="size-full object-cover object-top" />}
-              <AnimatePresence>
-                {reading && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 grid place-items-center bg-black/45 text-white">
-                    <motion.span className="absolute inset-x-0 h-14 bg-gradient-to-b from-transparent via-white/35 to-transparent" animate={{ y: [-60, 180] }} transition={{ repeat: Infinity, duration: 1.4, ease: 'easeInOut' }} />
-                    <span className="relative flex items-center gap-2 text-sm font-semibold">
-                      <ScanText className="size-4" /> Leyendo la captura…
-                    </span>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-              <span className="absolute right-3 bottom-3 rounded-full bg-black/55 px-3 py-1 text-xs font-semibold text-white">Cambiar foto</span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-4 p-5">
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            const files = [...(e.target.files ?? [])]
+            e.target.value = ''
+            void pickFiles(files)
+          }}
+        />
+
+        {shots.length === 0 ? (
+          <Press onClick={() => fileRef.current?.click()} className="block w-full rounded-3xl border border-dashed border-line bg-surface p-5 text-left">
+            <span className="flex items-center gap-4">
               <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-accent text-on-accent">
-                <Camera className="size-5" />
+                <Images className="size-5" />
               </span>
               <span>
-                <span className="block font-semibold">Añadir la captura de la báscula</span>
-                <span className="block text-sm text-muted">Plato leerá los datos por ti</span>
+                <span className="block font-semibold">Elegir las capturas de la báscula</span>
+                <span className="block text-sm text-muted">Puedes elegir varias a la vez; Plato lee los datos en tu móvil</span>
               </span>
-            </div>
+            </span>
+          </Press>
+        ) : (
+          <div className="no-scrollbar -mx-5 flex gap-2.5 overflow-x-auto px-5 pb-1">
+            {shots.map((s, i) => (
+              <motion.div key={s.key} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={spring} className="relative h-40 w-24 shrink-0 overflow-hidden rounded-2xl border border-line bg-surface">
+                <button type="button" onClick={() => viewer(srcs, i, 'Captura de la báscula')} aria-label={`Ver captura ${i + 1}`} className="size-full cursor-zoom-in">
+                  {s.prep ? <img src={s.prep.url} alt="" className="size-full object-cover object-top" /> : <MediaImg src={s.ref} className="size-full object-cover object-top" />}
+                </button>
+                {!reading && (
+                  <button type="button" onClick={() => setShots((all) => all.filter((x) => x.key !== s.key))} aria-label={`Quitar captura ${i + 1}`} className="absolute top-1.5 right-1.5 grid size-7 cursor-pointer place-items-center rounded-full bg-black/60 text-white">
+                    <X className="size-3.5" />
+                  </button>
+                )}
+                <AnimatePresence>
+                  {reading && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 overflow-hidden bg-black/35">
+                      <motion.span className="absolute inset-x-0 h-10 bg-gradient-to-b from-transparent via-white/45 to-transparent" animate={{ y: [-40, 170] }} transition={{ repeat: Infinity, duration: 1.3, ease: 'easeInOut', delay: i * 0.2 }} />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            ))}
+            {!reading && (
+              <Press onClick={() => fileRef.current?.click()} aria-label="Añadir otra captura" className="grid h-40 w-24 shrink-0 place-items-center rounded-2xl border border-dashed border-line bg-surface text-muted">
+                <span className="flex flex-col items-center gap-1 text-xs font-semibold">
+                  <Plus className="size-5" /> Otra
+                </span>
+              </Press>
+            )}
+          </div>
+        )}
+
+        <AnimatePresence>
+          {progress && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+              <div className="rounded-2xl bg-surface px-4 py-3">
+                <p className="flex items-center gap-2 text-sm font-semibold">
+                  <ScanText className="size-4" />
+                  {progress.stage === 'loading' ? 'Preparando el lector (solo la primera vez)…' : `Leyendo captura ${progress.index} de ${progress.total}…`}
+                </p>
+                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-2">
+                  <motion.div className="h-full rounded-full bg-veg" animate={{ width: `${Math.max(6, progress.pct * 100)}%` }} transition={spring} />
+                </div>
+              </div>
+            </motion.div>
           )}
-        </Press>
+        </AnimatePresence>
 
         {msg && <Msg {...msg} />}
 

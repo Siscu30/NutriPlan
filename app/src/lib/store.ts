@@ -300,7 +300,7 @@ export const actions = {
   resetPerson: (p: PersonId) => person(p, (d) => ({ ...emptyPerson(), houseBreakfast: d.houseBreakfast, weighIns: d.weighIns, measures: d.measures })),
   saveWeighIn: (p: PersonId, w: WeighIn) => person(p, (d) => ({ weighIns: mergeById(d.weighIns, [{ ...w, updatedAt: now() }]) })),
   deleteWeighIn: (p: PersonId, id: string) =>
-    person(p, (d) => ({ weighIns: d.weighIns.map((w) => (w.id === id ? { ...w, deleted: true, v: {}, photo: undefined, updatedAt: now() } : w)) })),
+    person(p, (d) => ({ weighIns: d.weighIns.map((w) => (w.id === id ? { ...w, deleted: true, v: {}, photo: undefined, photos: undefined, updatedAt: now() } : w)) })),
   saveMeasure: (p: PersonId, m: MeasureEntry) => person(p, (d) => ({ measures: mergeById(d.measures, [{ ...m, updatedAt: now() }]) })),
   deleteMeasure: (p: PersonId, id: string) =>
     person(p, (d) => ({ measures: d.measures.map((m) => (m.id === id ? { ...m, deleted: true, v: {}, updatedAt: now() } : m)) })),

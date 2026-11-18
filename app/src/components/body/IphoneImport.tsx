@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'motion/react'
-import { Check, ChevronDown, Copy, HeartPulse, Image as ImageIcon, KeyRound, Smartphone } from 'lucide-react'
+import { Check, ChevronDown, Copy, HeartPulse, KeyRound, Smartphone } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import type { PersonId } from '../../data/types'
 import { useAuth } from '../../lib/auth'
@@ -119,7 +119,7 @@ export function IphoneImport() {
       <h3 className="display flex items-center gap-2 text-lg font-semibold">
         <Smartphone className="size-4" /> Enviar pesajes desde el iPhone
       </h3>
-      <p className="mt-1 text-sm text-muted">Con la app Atajos: el peso de Salud o la captura de la báscula llegan solos a Plato.</p>
+      <p className="mt-1 text-sm text-muted">Opcional, con la app Atajos: el peso y el % de grasa de Salud llegan solos a Plato. Para el resto de datos, usa las capturas en Cuerpo → Añadir pesaje.</p>
 
       {people.length > 1 && (
         <div className="mt-3 flex rounded-full bg-surface p-1">
@@ -197,26 +197,6 @@ export function IphoneImport() {
           </Step>
         </Guide>
 
-        <Guide icon={<ImageIcon className="size-5 text-carb" />} title="Atajo «Captura a Plato»" sub="Comparte la captura de la báscula y se guarda con todos los datos">
-          <Step n={1}>
-            En <B>Atajos</B> → <B>+</B>, llámalo «Captura a Plato». En los detalles (ⓘ) activa <B>Mostrar en hoja de compartir</B> y deja solo <B>Imágenes</B>.
-          </Step>
-          <Step n={2}>
-            Añade <B>Convertir imagen</B> (Entrada del atajo) a <B>JPEG</B>.
-          </Step>
-          <Step n={3}>
-            Añade <B>Redimensionar imagen</B> a <B>1200</B> de ancho.
-          </Step>
-          <Step n={4}>
-            Añade <B>Obtener contenido de URL</B>: pega la dirección, método <B>POST</B>, <B>Cabeceras</B>: <B>x-plato-token</B> con tu código y <B>Content-Type</B> = <B>image/jpeg</B>; <B>Cuerpo de la solicitud</B>: <B>Archivo</B> → la imagen redimensionada.
-          </Step>
-          <Step n={5}>
-            Añade <B>Mostrar notificación</B> con el <B>Contenido de la URL</B>.
-          </Step>
-          <Step n={6}>
-            Uso: haz la captura en la app de la báscula → <B>Compartir</B> → <B>Captura a Plato</B>. Lee peso, grasa, músculo, agua, grasa visceral, edad corporal y el resto, y guarda la foto.
-          </Step>
-        </Guide>
       </div>
     </section>
   )

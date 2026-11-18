@@ -137,12 +137,17 @@ export const MEASURE_TIPS = [
 export interface WeighIn {
   id: string
   date: string
-  /** Captura de la báscula ("sb:body/<persona>/<id>.jpg") */
+  /** Primera captura de la báscula ("sb:body/<persona>/<id>.jpg") */
   photo?: string
+  /** Todas las capturas del pesaje */
+  photos?: string[]
   v: Partial<Record<ScaleKey, number>>
   updatedAt: number
   deleted?: boolean
 }
+
+/** Capturas de un pesaje (los antiguos solo tienen "photo") */
+export const photosOf = (w?: Pick<WeighIn, 'photo' | 'photos'> | null): string[] => w?.photos ?? (w?.photo ? [w.photo] : [])
 
 export interface MeasureEntry {
   id: string

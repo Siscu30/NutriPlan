@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from 'motion/react'
 import { ChevronRight, Image as ImageIcon, Lightbulb, Plus, Ruler, Scale } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { MEASURES, MEASURE_TIPS, SCALE, fmt, fmtDelta, live, round, tone, type MeasureEntry, type MeasureKey, type MetricMeta, type WeighIn } from '../data/body'
+import { MEASURES, MEASURE_TIPS, SCALE, fmt, fmtDelta, live, photosOf, round, tone, type MeasureEntry, type MeasureKey, type MetricMeta, type WeighIn } from '../data/body'
 import type { PersonId } from '../data/types'
 import { BodyFigure, type ToneName } from '../components/body/BodyFigure'
 import { LineChart, daysBetween, type Point } from '../components/body/LineChart'
@@ -182,7 +182,7 @@ function Pesos({ list, onAdd, onOpen }: { list: WeighIn[]; onAdd: () => void; on
               return (
                 <li key={w.id}>
                   <Press whileHover={{ x: 2 }} onClick={() => onOpen(w)} className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left hover:bg-surface-2">
-                    <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-surface-2 text-muted">{w.photo ? <ImageIcon className="size-4" /> : <Scale className="size-4" />}</span>
+                    <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-surface-2 text-muted">{photosOf(w).length ? <ImageIcon className="size-4" /> : <Scale className="size-4" />}</span>
                     <span className="min-w-0 flex-1">
                       <span className="num block font-semibold">{fmt(w.v.weight, 1)} kg</span>
                       <span className="block text-[13px] text-muted">
