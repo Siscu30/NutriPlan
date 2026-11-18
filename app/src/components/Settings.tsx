@@ -2,6 +2,7 @@ import { motion } from 'motion/react'
 import { Cloud, CloudOff, FileUp, KeyRound, Trash2, X } from 'lucide-react'
 import { useAuth } from '../lib/auth'
 import { AccessAdmin, AccountSection } from './Access'
+import { IphoneImport } from './body/IphoneImport'
 import { useState } from 'react'
 import { Drawer } from 'vaul'
 import type { PersonId, PlanDoc } from '../data/types'
@@ -87,6 +88,7 @@ export function Settings({ open, onClose, onImport }: { open: boolean; onClose: 
               ))}
             </section>
 
+            <IphoneImport />
             <AccountSection />
             <AccessAdmin />
 

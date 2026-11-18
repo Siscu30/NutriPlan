@@ -6,7 +6,7 @@ import { MEASURES, SCALE, fmt, live, type MeasureEntry, type MeasureKey, type Sc
 import type { PersonId } from '../../data/types'
 import { deleteBodyPhoto, prepareImage, uploadBodyPhoto, type Prepared } from '../../lib/bodyPhoto'
 import { shortDate, today } from '../../lib/dates'
-import { readScaleCapture } from '../../lib/scale'
+import { readScaleCapture, readScaleOnServer } from '../../lib/scale'
 import { actions, useStore } from '../../lib/store'
 import { MediaImg, Press, spring } from '../ui'
 
@@ -115,18 +115,25 @@ export function WeighInSheet({ open, person, entry, onClose }: { open: boolean; 
       return setMsg({ text: 'No se pudo abrir esa imagen. Prueba con otra captura.' })
     }
     setPrep(p)
-    if (!apiKey) return setMsg({ text: 'Rellena los datos a mano. Si añades tu clave de Claude en Ajustes, la app los leerá sola de la captura.', ok: true })
     setReading(true)
     abort.current = new AbortController()
     try {
-      const r = await readScaleCapture(apiKey, p.base64, abort.current.signal)
+      // La lee el servidor de Plato; la clave propia (si hay) solo como respaldo
+      let r
+      try {
+        r = await readScaleOnServer(person, p.base64)
+      } catch (e) {
+        if (!apiKey) throw e
+        r = await readScaleCapture(apiKey, p.base64, abort.current.signal)
+      }
+      if (abort.current.signal.aborted) return
       setVals((cur) => ({ ...cur, ...Object.fromEntries(Object.entries(r.v).map(([k, n]) => [k, toText(n)])) }))
       setFilled(new Set(Object.keys(r.v) as ScaleKey[]))
       if (r.date) setDate(r.date > today() ? today() : r.date)
       setMore(true)
       setMsg({ text: `He leído ${Object.keys(r.v).length} datos de la captura. Revísalos antes de guardar.`, ok: true })
     } catch (e) {
-      if ((e as Error).name !== 'AbortError') setMsg({ text: (e as Error).message || 'No se pudo leer la captura. Rellena los datos a mano.' })
+      if ((e as Error).name !== 'AbortError') setMsg({ text: `${(e as Error).message || 'No se pudo leer la captura.'} Puedes escribir los datos a mano y guardar igualmente.` })
     } finally {
       setReading(false)
     }
@@ -192,7 +199,7 @@ export function WeighInSheet({ open, person, entry, onClose }: { open: boolean; 
               </span>
               <span>
                 <span className="block font-semibold">Añadir la captura de la báscula</span>
-                <span className="block text-sm text-muted">{apiKey ? 'Claude leerá los datos por ti' : 'Opcional; los datos los escribes abajo'}</span>
+                <span className="block text-sm text-muted">Plato leerá los datos por ti</span>
               </span>
             </div>
           )}

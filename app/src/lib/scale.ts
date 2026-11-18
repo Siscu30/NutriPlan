@@ -69,3 +69,22 @@ export async function readScaleCapture(apiKey: string, jpegBase64: string, signa
   for (const [k, val] of Object.entries(parsed.values)) if (typeof val === 'number' && Number.isFinite(val)) v[k as ScaleKey] = val
   return { date: /^\d{4}-\d{2}-\d{2}$/.test(parsed.date) ? parsed.date : '', v }
 }
+
+/** Lectura en el servidor de Plato (sin clave en el dispositivo) */
+export async function readScaleOnServer(person: string, jpegBase64: string): Promise<ScaleReading> {
+  const { supabase } = await import('./supabase')
+  if (!supabase) throw new Error('Falta la conexión con el servidor.')
+  const { data, error } = await supabase.functions.invoke('plato-import', { body: { person, image: jpegBase64, mediaType: 'image/jpeg' } })
+  if (error) {
+    let msg = 'No se pudo leer la captura en el servidor.'
+    try {
+      const body = await (error as { context?: Response }).context?.json()
+      if (body?.error) msg = body.error
+    } catch {
+      /* sin detalle */
+    }
+    throw new Error(msg)
+  }
+  const r = data as { date?: string; v?: Partial<Record<ScaleKey, number>> }
+  return { date: r.date ?? '', v: r.v ?? {} }
+}
