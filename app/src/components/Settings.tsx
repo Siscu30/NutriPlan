@@ -127,6 +127,8 @@ export function Settings({ open, onClose, onImport }: { open: boolean; onClose: 
                 {confirm === 'reset' ? 'Pulsa otra vez para borrar' : `Borrar cambios de ${state.shared.names[state.person]}`}
               </Press>
             </section>
+
+            <p className="num mt-8 text-center text-xs text-muted">Plato · versión {__APP_VERSION__}</p>
           </div>
         </Drawer.Content>
       </Drawer.Portal>

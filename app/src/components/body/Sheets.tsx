@@ -220,7 +220,7 @@ export function WeighInSheet({ open, person, entry, onClose }: { open: boolean; 
               </span>
               <span>
                 <span className="block font-semibold">Elegir las capturas de la báscula</span>
-                <span className="block text-sm text-muted">Puedes elegir varias a la vez; Plato lee los datos en tu móvil</span>
+                <span className="block text-sm text-muted">Marca todas las capturas (✓) y pulsa «Añadir». Plato lee los datos en tu móvil</span>
               </span>
             </span>
           </Press>

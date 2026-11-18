@@ -2,6 +2,7 @@ import { AnimatePresence, MotionConfig, motion } from 'motion/react'
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { SideRail, TabBar, type Tab } from './components/Nav'
 import { AuthGate } from './components/AuthGate'
+import { UpdatePrompt } from './components/UpdatePrompt'
 import { PageViewerProvider } from './components/PageViewer'
 import { RecipeSheet, type SheetTarget } from './components/RecipeSheet'
 import { Settings } from './components/Settings'
@@ -36,6 +37,7 @@ export default function App() {
 
   return (
     <MotionConfig reducedMotion="user">
+      <UpdatePrompt />
       <AuthGate>
       <PersonTheme />
       <PageViewerProvider>
