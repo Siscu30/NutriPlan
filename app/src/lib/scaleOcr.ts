@@ -2,7 +2,7 @@
 // La primera vez descarga el lector y el idioma español (unos pocos MB); después quedan guardados.
 import type { Worker } from 'tesseract.js'
 import { today } from './dates'
-import { parseScalePages, type OcrLine, type OcrPage, type ParsedScale } from './scaleParse'
+import { dateIn, parseScalePages, weightFromZoom, weightOf, type Box, type OcrLine, type OcrPage, type ParsedScale } from './scaleParse'
 
 export type OcrProgress = { stage: 'loading' | 'reading'; pct: number; index?: number; total?: number }
 
@@ -51,6 +51,7 @@ export async function readScaleScreens(images: Blob[], onProgress: (p: OcrProgre
   onProgress({ stage: 'loading', pct: 0 })
   const w = await getWorker()
   const pages: OcrPage[] = []
+  const sources: HTMLCanvasElement[] = []
   for (let i = 0; i < images.length; i++) {
     onProgress({ stage: 'reading', pct: i / images.length, index: i + 1, total: images.length })
     const { canvases, width } = await variants(images[i])
@@ -62,7 +63,71 @@ export async function readScaleScreens(images: Blob[], onProgress: (p: OcrProgre
           for (const l of p.lines) lines.push({ ...l.bbox, words: l.words.map((x) => ({ text: x.text, ...x.bbox })) })
     }
     pages.push({ lines, width })
+    sources.push(canvases[0])
   }
+  const zoom = await zoomReads(w, pages, sources)
   onProgress({ stage: 'reading', pct: 1, index: images.length, total: images.length })
-  return parseScalePages(pages, today())
+  return parseScalePages(pages, today(), zoom)
+}
+
+/** Recorta una zona, la amplía y la deja en negro sobre blanco */
+function crop(src: HTMLCanvasElement, b: Box, scale: number, binarize = false) {
+  const x0 = Math.max(0, Math.floor(b.x0)), y0 = Math.max(0, Math.floor(b.y0))
+  const w = Math.min(src.width, Math.ceil(b.x1)) - x0, h = Math.min(src.height, Math.ceil(b.y1)) - y0
+  const c = document.createElement('canvas')
+  c.width = Math.max(1, Math.round(w * scale))
+  c.height = Math.max(1, Math.round(h * scale))
+  const ctx = c.getContext('2d')!
+  if (!binarize) ctx.filter = 'grayscale(1) invert(1) contrast(1.6)'
+  ctx.drawImage(src, x0, y0, w, h, 0, 0, c.width, c.height)
+  if (binarize) {
+    // Texto gris tenue sobre fondo oscuro: todo lo que destaca sobre el fondo pasa a negro, el resto a blanco
+    const img = ctx.getImageData(0, 0, c.width, c.height)
+    const d = img.data
+    const lum = (i: number) => 0.3 * d[i] + 0.59 * d[i + 1] + 0.11 * d[i + 2]
+    const hist = new Array(256).fill(0)
+    for (let i = 0; i < d.length; i += 4) hist[Math.round(lum(i))]++
+    let acc = 0
+    let bg = 0
+    for (let v = 0; v < 256; v++) if ((acc += hist[v]) >= d.length / 8) { bg = v; break } // mediana del fondo
+    const t = bg + 28
+    for (let i = 0; i < d.length; i += 4) {
+      const ink = lum(i) > t ? 0 : 255
+      d[i] = d[i + 1] = d[i + 2] = ink
+    }
+    ctx.putImageData(img, 0, 0)
+  }
+  return c
+}
+
+/**
+ * Lectura "con lupa" del peso y de la fecha: solo dígitos, en la zona ampliada.
+ * El decimal pequeño del peso (",8") y la fecha gris clara se leen mal en la pasada general.
+ */
+async function zoomReads(w: Worker, pages: OcrPage[], sources: HTMLCanvasElement[]): Promise<{ weight?: number; date?: string }> {
+  let best: { i: number; r: NonNullable<ReturnType<typeof weightOf>> } | null = null
+  pages.forEach((p, i) => {
+    const r = weightOf(p.lines)
+    if (r && (!best || r.h > best.r.h)) best = { i, r }
+  })
+  if (!best) return {}
+  const { i, r } = best as { i: number; r: NonNullable<ReturnType<typeof weightOf>> }
+  const src = sources[i]
+  const out: { weight?: number; date?: string } = {}
+  try {
+    await w.setParameters({ tessedit_char_whitelist: '0123456789,', tessedit_pageseg_mode: '7' as never })
+    const pad = r.h * 0.15
+    const wz = await w.recognize(crop(src, { x0: r.box.x0 - pad, y0: r.box.y0 - pad, x1: r.box.x1 + pad, y1: r.box.y1 + pad }, 1))
+    out.weight = weightFromZoom(wz.data.text, r.intPart)
+    // La fecha está entre el título y el peso, en gris claro
+    await w.setParameters({ tessedit_char_whitelist: '0123456789/: ', tessedit_pageseg_mode: '6' as never })
+    const dz = await w.recognize(crop(src, { x0: 0, y0: r.box.y0 - r.h * 2.8, x1: src.width, y1: r.box.y0 - r.h * 0.3 }, 2, true))
+    out.date = dateIn(dz.data.text, today()) || undefined
+  } catch {
+    /* sin lupa: vale la lectura general */
+  } finally {
+    // Valores por defecto de tesseract.js (modo "bloque")
+    await w.setParameters({ tessedit_char_whitelist: '', tessedit_pageseg_mode: '6' as never })
+  }
+  return out
 }

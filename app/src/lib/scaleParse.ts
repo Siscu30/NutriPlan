@@ -85,6 +85,7 @@ function lev(a: string, b: string) {
 const like = (w: string, target: string) => {
   if (!w) return false
   if (w === target) return true
+  if (target === 'imc') return ['im', 'lmc', 'imo', 'inc', 'ime'].includes(w)
   const tol = target.length <= 3 ? 0 : target.length <= 5 ? 1 : target.length <= 8 ? 2 : 3
   return Math.abs(w.length - target.length) <= tol && lev(w, target) <= tol
 }
@@ -164,8 +165,15 @@ function valueOf(seg: Segment) {
   return w ? numberOf(w.text) : null
 }
 
-/** Peso: el número más grande de la pantalla ("111" + ",3" pequeño al lado) */
-function weightOf(lines: OcrLine[]): number | undefined {
+export interface Box {
+  x0: number
+  y0: number
+  x1: number
+  y1: number
+}
+
+/** Peso: el número más grande de la pantalla ("110" + ",8" pequeño al lado) */
+export function weightOf(lines: OcrLine[]): { n?: number; h: number; box: Box; intPart: string } | null {
   let best: { line: OcrLine; h: number } | null = null
   for (const l of lines) {
     const nums = l.words.filter((w) => /\d/.test(w.text))
@@ -173,14 +181,15 @@ function weightOf(lines: OcrLine[]): number | undefined {
     const h = Math.max(...nums.map((w) => w.y1 - w.y0))
     if (!best || h > best.h) best = { line: l, h }
   }
-  if (!best || best.h < 40) return undefined
-  // Dígitos grandes de esa línea + decimal pequeño a su derecha (puede estar en otra línea)
+  if (!best || best.h < 40) return null
   const big = best.line.words.filter((w) => /\d/.test(w.text) && w.y1 - w.y0 > best!.h * 0.6)
   const intPart = big.map((w) => w.text.replace(/\D/g, '')).join('')
+  const x0 = Math.min(...big.map((w) => w.x0))
   const right = Math.max(...big.map((w) => w.x1))
   const top = Math.min(...big.map((w) => w.y0))
   const bottom = Math.max(...big.map((w) => w.y1))
-  // A la derecha va "kg" arriba y ",3" abajo; el OCR suele leer la coma como "1": se coge el último dígito
+  const box = { x0, y0: top, x1: right + best.h * 1.6, y1: bottom }
+  // A la derecha va "kg" arriba y ",8" abajo; el OCR suele leer la coma como "1": se coge el último dígito
   const small = lines
     .flatMap((l) => l.words)
     .filter((w) => w.x0 >= right - 5 && w.x0 < right + best!.h * 2 && w.y0 >= top - 10 && w.y1 <= bottom + best!.h && /\d/.test(w.text) && w.y1 - w.y0 < best!.h * 0.75)
@@ -188,15 +197,34 @@ function weightOf(lines: OcrLine[]): number | undefined {
     .map((w) => w.text.replace(/\D/g, ''))
     .join('')
   const direct = numberOf(big.map((w) => w.text).join(''))
-  if (direct?.decimal) return fit('weight', direct)
-  const n = parseFloat(`${intPart}${small ? `.${small.slice(-1)}` : ''}`)
-  return fit('weight', { n, decimal: true })
+  if (direct?.decimal) return { n: fit('weight', direct), h: best.h, box, intPart }
+  const n = fit('weight', { n: parseFloat(`${intPart}${small ? `.${small.slice(-1)}` : ''}`), decimal: true })
+  return { n, h: best.h, box, intPart }
+}
+
+/** Lectura "con lupa" de la zona del peso (solo dígitos): "1108" → 110,8 si encaja con la parte entera */
+export function weightFromZoom(text: string, intPart: string): number | undefined {
+  const digits = text.replace(/[^0-9]/g, '')
+  if (!intPart || !digits.startsWith(intPart) || digits.length <= intPart.length) return undefined
+  return fit('weight', { n: parseFloat(`${intPart}.${digits[intPart.length]}`), decimal: true })
+}
+
+/** Fecha en un texto: "08/11/2026" (si el año se lee mal, se usa el actual) */
+export function dateIn(text: string, today: string): string {
+  const m = text.match(DATE)
+  if (!m || +m[2] < 1 || +m[2] > 12 || +m[1] < 1 || +m[1] > 31) return ''
+  const md = `${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`
+  const y = +m[3]
+  const year = +today.slice(0, 4)
+  let d = y >= 2020 && y <= year ? `${y}-${md}` : `${year}-${md}`
+  if (d > today) d = `${year - 1}-${md}`
+  return d
 }
 
 const DATE = /(\d{1,2})\s*\/\s*(\d{1,2})\s*\/\s*(\d{4})/
 
 /** Interpreta todas las capturas de un pesaje y une sus datos */
-export function parseScalePages(pages: OcrPage[], today: string): ParsedScale {
+export function parseScalePages(pages: OcrPage[], today: string, zoom: { weight?: number; date?: string } = {}): ParsedScale {
   const v: Partial<Record<ScaleKey, number>> = {}
   let date = ''
   const set = (k: ScaleKey, x: { n: number; decimal: boolean } | null) => {
@@ -215,25 +243,17 @@ export function parseScalePages(pages: OcrPage[], today: string): ParsedScale {
     ['leanKg', 'hr'],
   ]
   const gridRows: [ReturnType<typeof valueOf>, ReturnType<typeof valueOf>][] = []
+  let bestWeightH = 0
 
   for (const page of pages) {
     const lines = mergeLines(page.lines)
     const text = lines.map((l) => l.words.map((w) => w.text).join(' ')).join('\n')
-    if (!date) {
-      const m = text.match(DATE)
-      if (m && +m[2] >= 1 && +m[2] <= 12 && +m[1] >= 1 && +m[1] <= 31) {
-        const md = `${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`
-        const y = +m[3]
-        const year = +today.slice(0, 4)
-        // Si el año se lee mal ("7076"), se usa el actual (o el anterior si la fecha quedaría en el futuro)
-        let d = y >= 2020 && y <= year ? `${y}-${md}` : `${year}-${md}`
-        if (d > today) d = `${year - 1}-${md}`
-        date = d
-      }
-    }
-    if (v.weight == null) {
-      const w = weightOf(lines)
-      if (w != null) v.weight = w
+    if (!date) date = dateIn(text, today)
+    // El peso es el número más grande de todas las capturas (no de la primera)
+    const w = weightOf(lines)
+    if (w?.n != null && w.h > bestWeightH) {
+      bestWeightH = w.h
+      v.weight = w.n
     }
     // Puntuación: "75 Puntos"
     for (const l of lines) {
@@ -318,6 +338,9 @@ export function parseScalePages(pages: OcrPage[], today: string): ParsedScale {
     set(r, row[1])
   })
 
+  // Lo leído "con lupa" manda sobre la lectura general
+  if (zoom.weight != null) v.weight = zoom.weight
+  if (zoom.date) date = zoom.date
   // El peso de Xiaomi siempre lleva un decimal: si no se ha leído, hay que revisarlo
   const check: ScaleKey[] = v.weight != null && Number.isInteger(v.weight) ? ['weight'] : []
   return { date: date || today, v, check }
